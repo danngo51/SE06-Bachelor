@@ -1,0 +1,110 @@
+.homeMenuContainer {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    align-items: center;
+    justify-content: center;
+    background-color: #21272c;
+}
+
+.homeMenu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-evenly;
+    width: 600px;
+    height: 800px;
+    background-color: #485560;
+    padding-bottom: 40px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5); /* Adds a shadow */
+}
+
+/* Title at the top */
+.menuTitle {
+    margin: 0;
+    color: #ffffff;
+    font-family: 'dosis';
+    font-size: 50px;
+    line-height: 56px;
+    font-weight: 300;
+    text-transform: uppercase;
+}
+
+.homeTitleContainer {
+    height: 20%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: center;
+}
+
+/* Individual menu items */
+.menuItem {
+    font-family: 'dosis';
+    padding: 0px;
+    background-color: #697d8f;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    width: 80%;
+    height: 80px;
+
+    text-align: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    color: rgb(255, 255, 255);
+    font-weight: 500;
+    font-size: 21px;
+    line-height: 18px;
+}
+
+.menuItem:hover {
+    background-color: #5a6a79;
+}
+
+.svgItem {
+    margin-right: 15px;
+    height: 65px;
+}
+
+.menuInvisibleButton {
+    background: none; /* No background */
+    border: none; /* Remove the border */
+    width: 100%; /* Fill the width of the parent container */
+    height: 100%; /* Fill the height of the parent container */
+    padding: 0; /* Remove padding */
+    cursor: pointer; /* Show pointer cursor on hover */
+
+    text-align: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.menuItemText {
+    margin-left: 15px;
+    font-family: 'dosis';
+    color: rgb(255, 255, 255);
+    font-weight: 500;
+    font-size: 21px;
+    line-height: 18px;
+}
+
+.menuLink {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .homeTitleContainer {
+        height: 20%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-evenly;
+        align-items: center;
+    }
+}

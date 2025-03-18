@@ -1,0 +1,37 @@
+.dialogContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.dialogElement {
+    margin-top: 5px;
+}
+
+.labelButton {
+    display: inline-block; /* Make it behave like a button */
+    padding: 10px 20px; /* Add padding for a button-like look */
+    background-color: #007bff; /* Button background color */
+    color: #ffffff; /* Button text color */
+    font-size: 16px; /* Text size */
+    font-weight: bold; /* Bold text */
+    border: none; /* Remove border */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer; /* Pointer cursor on hover */
+    text-align: center; /* Center-align text */
+    text-decoration: none; /* Remove text underline */
+    transition: background-color 0.3s ease; /* Smooth color transition */
+}
+
+.customInput {
+    height: 2rem;
+    padding: 20px 0px;
+    padding-left: 10px;
+    width: 100%;
+    border: 2px solid #ddd;
+    font-size: 16px;
+    background-color: #fff;
+    color: #333;
+    transition: all 0.3s ease;
+    outline: none;
+}
