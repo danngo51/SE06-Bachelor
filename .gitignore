@@ -1,1 +1,64 @@
+# --- General OS and Editor Files ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# --- Frontend (React + TypeScript + Vite) ---
+node_modules/
+dist/
+.vite/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# --- Backend (FastAPI) ---
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+venv/
+Pipfile.lock
+poetry.lock
+pip-log.txt
+pip-delete-this-directory.txt
+
+# --- Environment Variables ---
+.env
+.env.local
+.env.development
+.env.production
+env
+env.local
+env.development
+env.production
+env
+backend/env
+backend/.env
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Database and Cache Files ---
+*.sqlite3
+*.db
+*.pkl
+*.h5
+*.hdf5
+*.joblib
+
+# --- Machine Learning Model Files ---
+backend/model/
+backend/models/
+*.pt
+*.pth
+
+
+# --- Docker ---
+docker-compose.override.yml
 
