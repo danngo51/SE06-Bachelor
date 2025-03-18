@@ -8,7 +8,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { areaConnectionDTO } from '../data/transmissionConfRequestDTO';
 
 // Base URL for your backend API
-const API_BASE_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:800/';
+const API_BASE_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8000/';
 
 // #POST /Subdivision
 export const subdivideAreas = async (subdivideRequest: SubdivideRequest) => {
