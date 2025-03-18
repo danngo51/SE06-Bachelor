@@ -5,7 +5,7 @@ Thumbs.db
 .idea/
 *.swp
 
-# --- Frontend (React + TypeScript + Vite) ---
+# --- Frontend ---
 node_modules/
 dist/
 .vite/
@@ -16,7 +16,7 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
-# --- Backend (FastAPI) ---
+# --- Backend ---
 __pycache__/
 *.py[cod]
 *.so
@@ -53,8 +53,6 @@ logs/
 *.joblib
 
 # --- Machine Learning Model Files ---
-backend/model/
-backend/models/
 *.pt
 *.pth
 
