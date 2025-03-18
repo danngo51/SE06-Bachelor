@@ -3,6 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.routes import router
 from core.config import settings
 
+# FastAPI run command:
+# uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+
 app = FastAPI(**settings.model_dump())
 
 # Enable CORS (for frontend communication)

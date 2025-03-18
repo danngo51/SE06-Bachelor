@@ -8,7 +8,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { areaConnectionDTO } from '../data/transmissionConfRequestDTO';
 
 // Base URL for your backend API
-const API_BASE_URL = import.meta.env.VITE_MARKETSIMPARSER_API_URL || 'http://localhost:5244/api/MarketSimDbParser';
+const API_BASE_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:800/';
 
 // #POST /Subdivision
 export const subdivideAreas = async (subdivideRequest: SubdivideRequest) => {
