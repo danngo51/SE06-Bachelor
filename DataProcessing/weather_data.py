@@ -80,6 +80,7 @@ for year in range(2019, 2024):
                 })
 
                 zone_dfs.append(df)
+                time.sleep(15)  # Wait 60 seconds between each API call
 
             # Average across locations
             merged = pd.concat(zone_dfs).groupby("timestamp").mean().reset_index()
