@@ -31,7 +31,6 @@ weather_vars = [
     "shortwave_radiation"
 ]
 
-# Loop through all months from Jan 2019 to Dec 2023
 for year in range(2019, 2024):
     for month in range(1, 13):
         start_date = f"{year}-{month:02d}-01"
