@@ -5,6 +5,8 @@ Thumbs.db
 .idea/
 *.swp
 
+DataProcessing/results/
+
 # --- Frontend ---
 node_modules/
 dist/
