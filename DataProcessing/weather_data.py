@@ -4,6 +4,7 @@ import pandas as pd
 from retry_requests import retry
 from Weather.zones import zones
 from datetime import datetime, timedelta
+import time as t
 import os
 
 # Create results/weather directory relative to this script
@@ -31,6 +32,7 @@ weather_vars = [
     "shortwave_radiation"
 ]
 
+# Loop through all months from Jan 2019 to Dec 2023
 for year in range(2019, 2024):
     for month in range(1, 13):
         start_date = f"{year}-{month:02d}-01"
@@ -63,7 +65,7 @@ for year in range(2019, 2024):
                 response = responses[0]
                 hourly = response.Hourly()
 
-                time = pd.date_range(
+                time_range = pd.date_range(
                     start=pd.to_datetime(hourly.Time(), unit="s", utc=True),
                     end=pd.to_datetime(hourly.TimeEnd(), unit="s", utc=True),
                     freq=pd.Timedelta(seconds=hourly.Interval()),
@@ -71,7 +73,7 @@ for year in range(2019, 2024):
                 )
 
                 df = pd.DataFrame({
-                    "timestamp": time,
+                    "timestamp": time_range,
                     "temperature_2m": hourly.Variables(0).ValuesAsNumpy(),
                     "wind_speed_10m": hourly.Variables(1).ValuesAsNumpy(),
                     "wind_direction_10m": hourly.Variables(2).ValuesAsNumpy(),
@@ -80,7 +82,6 @@ for year in range(2019, 2024):
                 })
 
                 zone_dfs.append(df)
-                time.sleep(15)  # Wait 60 seconds between each API call
 
             # Average across locations
             merged = pd.concat(zone_dfs).groupby("timestamp").mean().reset_index()
@@ -110,3 +111,5 @@ for year in range(2019, 2024):
         output_path = os.path.join(output_dir, f"weather_{year}_{month:02d}.csv")
         combined_df.to_csv(output_path, index=False)
         print(f"✅ Saved {output_path}")
+        print("Sleep")
+        t.sleep(15)
