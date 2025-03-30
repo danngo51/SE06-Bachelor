@@ -1,0 +1,5 @@
+TITLE="Overridden FastAPI Backend"
+DESCRIPTION="This is an overridden description from .env"
+VERSION="2.0"
+DEBUG=True
+DOCS_URL="/swagger"
