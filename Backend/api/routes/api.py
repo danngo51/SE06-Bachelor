@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
-router = APIRouter()
+api = APIRouter()
 
-@router.get("/status")
+@api.get("/status")
 def get_status():
     return {"status": "API is live!"}
 
