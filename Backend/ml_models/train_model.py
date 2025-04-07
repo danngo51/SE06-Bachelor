@@ -1,0 +1,28 @@
+from .informer.model import InformerWrapper
+
+# Example config (you’ll have this in a JSON or dict)
+config_informer = {
+    "enc_in": 6,
+    "dec_in": 6,
+    "c_out": 1,
+    "seq_len": 168,
+    "label_len": 48,
+    "pred_len": 24,
+    "factor": 5,
+    "d_model": 512,
+    "n_heads": 8,
+    "e_layers": 2,
+    "d_layers": 1,
+    "d_ff": 2048,
+    "dropout": 0.05,
+    "attn": "prob",
+    "embed": "timeF",
+    "freq": "h",
+    "activation": "gelu",
+    "output_attention": False,
+    "distil": True,
+    "mix": True,
+    "device": "cuda"
+}
+
+model = InformerWrapper(config_informer)

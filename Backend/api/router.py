@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from routes.api import api as apiRouter  # Import API submodule
-from routes.predict import predict as predictRouter  # Import Predict submodule
+from .routes.api import api as apiRouter  # Import API submodule
+from .routes.predict import predict as predictRouter  # Import Predict submodule
 
 
 router = APIRouter()
