@@ -8,3 +8,7 @@ predict = APIRouter()
 def get_status(service: IPredictionService = Depends(get_prediction_service)):
     return service.status()
 
+@predict.get("/test")
+def get_test(service: IPredictionService = Depends(get_prediction_service)):
+    return service.test()
+

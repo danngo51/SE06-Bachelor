@@ -1,6 +1,3 @@
-from .informer.model import InformerWrapper
-
-# Example config (you’ll have this in a JSON or dict)
 config_informer = {
     "enc_in": 6,
     "dec_in": 6,
@@ -24,5 +21,3 @@ config_informer = {
     "mix": True,
     "device": "cuda"
 }
-
-model = InformerWrapper(config_informer)
