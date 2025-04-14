@@ -3,7 +3,7 @@ def gru_test():
 
 import torch
 import os
-from gruModel.gruModel import GRUModel
+from Backend.ml_models.gru.gruModel.gruPredict import GRUModel
 
 class GRUWrapper:
     def __init__(self, input_dim=512, hidden_dim=128, model_path=None, device="cpu", bidirectional=False):
