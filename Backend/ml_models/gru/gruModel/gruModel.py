@@ -1,36 +1,14 @@
+import torch
 import torch.nn as nn
 
 class GRUModel(nn.Module):
-    def __init__(self, input_dim=512, hidden_dim=128, num_layers=1, bidirectional=False, dropout=0.0):
-        """
-        input_dim:      Size of input features (Informer encoder output dim)
-        hidden_dim:     GRU hidden state size
-        num_layers:     Number of GRU layers
-        bidirectional:  Whether to use bidirectional GRU
-        dropout:        Dropout between GRU layers
-        """
+    def __init__(self, input_dim=512, hidden_dim=128, num_layers=1, output_dim=24):
         super().__init__()
-        self.gru = nn.GRU(
-            input_size=input_dim,
-            hidden_size=hidden_dim,
-            num_layers=num_layers,
-            batch_first=True,
-            bidirectional=bidirectional,
-            dropout=dropout if num_layers > 1 else 0.0
-        )
-        self.bidirectional = bidirectional
+        self.gru = nn.GRU(input_dim, hidden_dim, num_layers, batch_first=True)
+        self.regressor = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x):
-        """
-        x: Tensor of shape [batch, seq_len, input_dim]
-        Returns: Tensor of shape [batch, hidden_dim] (or hidden_dim * 2 if bidirectional)
-        """
-        output, _ = self.gru(x)  # output: [B, T, H] or [B, T, 2H]
-
-        # Use the final time step's hidden state (or mean pool)
-        if self.bidirectional:
-            pooled = output.mean(dim=1)  # [B, 2H]
-        else:
-            pooled = output[:, -1, :]    # [B, H]
-
-        return pooled
+        # x: [batch, seq_len, input_dim] → e.g. [32, 168, 512]
+        _, hidden = self.gru(x)  # hidden: [num_layers, batch, hidden_dim]
+        output = self.regressor(hidden[-1])  # use last layer’s hidden state
+        return output  # e.g. [batch, 24] → next 24h price prediction
