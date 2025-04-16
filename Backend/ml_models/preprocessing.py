@@ -12,18 +12,29 @@ BATCH_SIZE = 32
 FEATURES = [
     "hour", "day", "weekday", "month", "weekend", "season",
     "ep_lag_1", "ep_lag_24", "ep_lag_168", "ep_rolling_mean_24",
-    "dahtl_totalLoadValue", "dahtl_lag_1h", "dahtl_lag_24h", "dahtl_lag_168h",
-    "dahtl_rolling_mean_24h", "dahtl_rolling_mean_168h",
-    "atl_totalLoadValue", "atl_lag_1h", "atl_lag_24h", "atl_lag_168h",
-    "atl_rolling_mean_24h", "atl_rolling_mean_168h",
+    "dahtl_totalLoadValue", "dahtl_lag_1h", "dahtl_lag_24h", "dahtl_lag_168h", "dahtl_rolling_mean_24h", "dahtl_rolling_mean_168h",
+    "atl_totalLoadValue", "atl_lag_1h", "atl_lag_24h", "atl_lag_168h", "atl_rolling_mean_24h", "atl_rolling_mean_168h",
     "temperature_2m", "wind_speed_10m", "wind_direction_10m", "cloudcover", "shortwave_radiation",
     "temperature_2m_lag1", "wind_speed_10m_lag1", "wind_direction_10m_lag1", "cloudcover_lag1", "shortwave_radiation_lag1",
     "temperature_2m_lag24", "wind_speed_10m_lag24", "wind_direction_10m_lag24", "cloudcover_lag24", "shortwave_radiation_lag24",
-    "temperature_2m_lag168", "wind_speed_10m_lag168", "wind_direction_10m_lag168", "cloudcover_lag168", "shortwave_radiation_lag168", "Price[Currency/MWh]"
+    "temperature_2m_lag168", "wind_speed_10m_lag168", "wind_direction_10m_lag168", "cloudcover_lag168", "shortwave_radiation_lag168"
 ]
+
 TARGET = "Price[Currency/MWh]"
 
+df = pd.read_csv(CSV_PATH, nrows=1)
+csv_columns = set(df.columns) - {"date", "MapCode", "Price[Currency/MWh]"}
+feature_set = set(FEATURES)
+
+missing_from_features = csv_columns - feature_set
+
+print("✅ Columns in CSV but not in FEATURES:", missing_from_features)
+print("✅ Number of features in FEATURES:", len(FEATURES))
+
+
 def load_training_batch():
+    print("Number of features:", len(FEATURES))
+
     df = pd.read_csv(CSV_PATH, parse_dates=["date"])
     df.rename(columns={"date": "timestamp"}, inplace=True)
     df = df.dropna()
@@ -31,8 +42,10 @@ def load_training_batch():
     full_data = df[FEATURES].values
     target_data = df[TARGET].values
 
+
     scaler = StandardScaler()
     full_data = scaler.fit_transform(full_data)
+    print("Input shape:", full_data.shape) 
 
     time_features = pd.DataFrame({
     "month": df["timestamp"].dt.month,

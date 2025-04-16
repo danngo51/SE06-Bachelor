@@ -25,7 +25,7 @@ def main():
     optimizer = optim.Adam(list(gru.parameters()) + list(regressor.parameters()), lr=0.001)
 
     # ✅ 4. Training loop
-    EPOCHS = 10
+    EPOCHS = 3
     for epoch in range(EPOCHS):
         total_loss = 0
         batch_count = 0
