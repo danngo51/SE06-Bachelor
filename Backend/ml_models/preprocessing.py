@@ -19,12 +19,13 @@ FEATURES = [
     "temperature_2m", "wind_speed_10m", "wind_direction_10m", "cloudcover", "shortwave_radiation",
     "temperature_2m_lag1", "wind_speed_10m_lag1", "wind_direction_10m_lag1", "cloudcover_lag1", "shortwave_radiation_lag1",
     "temperature_2m_lag24", "wind_speed_10m_lag24", "wind_direction_10m_lag24", "cloudcover_lag24", "shortwave_radiation_lag24",
-    "temperature_2m_lag168", "wind_speed_10m_lag168", "wind_direction_10m_lag168", "cloudcover_lag168", "shortwave_radiation_lag168"
+    "temperature_2m_lag168", "wind_speed_10m_lag168", "wind_direction_10m_lag168", "cloudcover_lag168", "shortwave_radiation_lag168", "Price[Currency/MWh]"
 ]
 TARGET = "Price[Currency/MWh]"
 
 def load_training_batch():
-    df = pd.read_csv(CSV_PATH, parse_dates=["timestamp"])
+    df = pd.read_csv(CSV_PATH, parse_dates=["date"])
+    df.rename(columns={"date": "timestamp"}, inplace=True)
     df = df.dropna()
 
     full_data = df[FEATURES].values
@@ -34,9 +35,10 @@ def load_training_batch():
     full_data = scaler.fit_transform(full_data)
 
     time_features = pd.DataFrame({
-        "hour": df["timestamp"].dt.hour,
-        "dayofweek": df["timestamp"].dt.dayofweek,
-        "month": df["timestamp"].dt.month
+    "month": df["timestamp"].dt.month,
+    "day": df["timestamp"].dt.day,
+    "weekday": df["timestamp"].dt.weekday,
+    "hour": df["timestamp"].dt.hour
     }).values
 
     num_samples = len(df) - (SEQ_LEN + PRED_LEN)
@@ -71,16 +73,18 @@ def load_training_batch():
 
 
 def load_input_sample(csv_path):
-    df = pd.read_csv(csv_path, parse_dates=["timestamp"])
+    df = pd.read_csv(csv_path, parse_dates=["date"])
+    df.rename(columns={"date": "timestamp"}, inplace=True)
     df = df.dropna()
 
     x = df[FEATURES].values
     x = StandardScaler().fit_transform(x)
 
     time_features = pd.DataFrame({
-        "hour": df["timestamp"].dt.hour,
-        "dayofweek": df["timestamp"].dt.dayofweek,
-        "month": df["timestamp"].dt.month
+    "month": df["timestamp"].dt.month,
+    "day": df["timestamp"].dt.day,
+    "weekday": df["timestamp"].dt.weekday,
+    "hour": df["timestamp"].dt.hour
     }).values
 
     x_enc = torch.tensor(x[:SEQ_LEN], dtype=torch.float32).unsqueeze(0)
