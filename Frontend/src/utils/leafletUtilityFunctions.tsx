@@ -103,7 +103,6 @@ export const addLabelsLayer = (
 };
 
 
-
 export const removeMarkers = (geojson: L.GeoJSON) => {
     geojson.eachLayer((layer: L.Layer) => {
         if (layer instanceof L.Marker) {

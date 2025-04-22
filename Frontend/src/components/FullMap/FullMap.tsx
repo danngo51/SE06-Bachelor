@@ -41,8 +41,8 @@ const FullMap = () => {
         // Initialize the map only if mapContainerRef.current is not null
         if (mapContainerRef.current) {
             const map = L.map(mapContainerRef.current).setView(
-                [51.505, -0.09],
-                3
+                [51.505, 10.205],
+            5
             ); // Set initial view
             mapRef.current = map;
 
