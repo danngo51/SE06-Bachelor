@@ -57,7 +57,7 @@ export const addInteractivityLayer = (
         if (highlightedFeature === feature) {
             // Unselect current feature
             pathLayer.setStyle(normalStyle);
-            setHighlightedFeature(null, null);
+            setHighlightedFeature(null, null); // Explicitly set to null when unselecting
             setHighlightBoolean(false);
 
             map.eachLayer((layer) => {
@@ -83,7 +83,7 @@ export const addInteractivityLayer = (
 
             // Apply selected style to the clicked feature
             pathLayer.setStyle(selectedStyle);
-            setHighlightedFeature(feature, layer);
+            setHighlightedFeature(feature, layer); // Update the highlighted feature using the callback
             setHighlightBoolean(true);
         }
     });

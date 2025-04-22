@@ -8,7 +8,6 @@ import {
     removeMarkers,
 } from '../../utils/leafletUtilityFunctions';
 import { initializeDrawingTools } from '../../utils/leafletUtilityDraw';
-import interactiveAreaCodes from '../../utils/interactiveAreaCodes.ts'; // Import the interactive area codes
 import FullMapMenu from '../FullMapMenu/FullMapMenu';
 
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
@@ -29,6 +28,7 @@ const FullMap = () => {
     const highlightedFeatureRef = useRef<GeoJSON.Feature | null>(null);
     const highlightedLayerRef = useRef<L.Layer | null>(null);
     const [highlightBoolean, setHighlightBoolean] = useState(false);
+    const [markedArea, setMarkedArea] = useState<GeoJSON.Feature | null>(null); // State to track the marked area as an object
 
 
     const [loading, setLoading] = useState(false);
@@ -38,7 +38,7 @@ const FullMap = () => {
         if (mapContainerRef.current) {
             const map = L.map(mapContainerRef.current).setView(
                 [55.000, 10.000],
-            4
+                4
             ); // Set initial view
             mapRef.current = map;
 
@@ -53,8 +53,13 @@ const FullMap = () => {
                             layer,
                             highlightedFeatureRef,
                             (feature, layer) => {
-                                highlightedFeatureRef.current = feature;
-                                highlightedLayerRef.current = layer;
+                                if (feature && feature.properties) {
+                                    highlightedFeatureRef.current = feature;
+                                    highlightedLayerRef.current = layer;
+                                    setMarkedArea(feature); // Update marked area with the entire feature object
+                                } else {
+                                    setMarkedArea(null); // Handle null case, if nothing is marked
+                                }
                             },
                             map,
                             drawingRef.current,
@@ -91,6 +96,12 @@ const FullMap = () => {
         }
     }, []);
 
+    useEffect(() => {
+        if (markedArea !== null) {
+            console.log('Marked area:', markedArea);
+            console.log("area:", markedArea.properties?.area) // Log the entire object
+        }
+    }, [markedArea]); // Log to console whenever markedArea changes
 
     return (
         <>
