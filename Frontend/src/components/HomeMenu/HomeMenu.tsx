@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import styles from './HomeMenu.module.css';
-// import e2gLogo from '../../assets/images/e2g-logo-hvid-menu.png'
 import strategiLogo from '../../assets/images/strategi-rum.png';
 import lightningSymbol from '../../assets/svg/lightning.svg';
 import { Link } from 'react-router-dom';
