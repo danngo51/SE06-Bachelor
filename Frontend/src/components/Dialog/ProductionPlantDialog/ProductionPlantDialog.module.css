@@ -1,9 +1,0 @@
-.dialogContainer {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.dialogElement {
-    width: 100%;
-}

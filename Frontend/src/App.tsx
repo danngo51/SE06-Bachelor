@@ -13,7 +13,7 @@ function App() {
             <Router>
                 <Routes>
                     <Route path="/" element={<Home />}></Route>
-                    <Route path="/Subdivide" element={<Subdivide />}></Route>
+                    <Route path="/Map" element={<Subdivide />}></Route>
                 </Routes>
             </Router>
             <ToastContainer />{' '}

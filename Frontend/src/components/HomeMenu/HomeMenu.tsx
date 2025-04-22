@@ -3,11 +3,9 @@ import styles from './HomeMenu.module.css';
 // import e2gLogo from '../../assets/images/e2g-logo-hvid-menu.png'
 import strategiLogo from '../../assets/images/strategi-rum.png';
 import lightningSymbol from '../../assets/svg/lightning.svg';
-import { Link } from 'react-router-dom'; // Import Link from react-router-dom if navigation is required
-import ProductionDialog from '../Dialog/ProductionDialog/ProductionDialog';
-import ProductionPlantDialog from '../Dialog/ProductionPlantDialog/ProductionPlantDialog';
+import { Link } from 'react-router-dom';
 import TransmissionDialog from '../Dialog/TransmissionDialog/TransmissionDialog';
-import PMSSettingsDialog from '../Dialog/PMSSettingsDialog/PMSSettingsDialog';
+import PredictDialog from '../Dialog/PredictDialog/PredictDialog';
 
 // Define the structure of menu items
 interface MenuItem {
@@ -21,13 +19,8 @@ const HomeMenu = () => {
     const [visibleDialogId, setVisibleDialogId] = useState<number | null>(null);
 
     const menuItems: MenuItem[] = [
-        { id: 1, label: 'Opdeling af prisområder', path: '/Subdivide' },
+        { id: 1, label: 'Predict' },
         { id: 2, label: 'Indlæs produktionsprofiler' },
-        // { id: 3, label: 'Indlæs forbrugsprofiler'},
-        // { id: 4, label: 'Undersøg excelark med produktionsanlæg'},
-        { id: 5, label: 'Indlæs produktionsanlæg i databasen' },
-        { id: 6, label: 'Opdater data for transmissionsforbindelser' },
-        {id: 7, label: 'Exporter PMS indstillinger'},
     ];
 
     const handleDialogOpen = (id: number) => {
@@ -83,22 +76,13 @@ const HomeMenu = () => {
                 ))}
             </div>
 
-            <ProductionDialog
+        
+            <TransmissionDialog
                 visible={visibleDialogId === 2}
                 onClose={handleDialogClose}
             />
-            {/* <ProductionDialog visible={visibleDialogId === 3} onClose={handleDialogClose}/> */}
-            {/* <ProductionDialog visible={visibleDialogId === 4} onClose={handleDialogClose}/> */}
-            <ProductionPlantDialog
-                visible={visibleDialogId === 5}
-                onClose={handleDialogClose}
-            />
-            <TransmissionDialog
-                visible={visibleDialogId === 6}
-                onClose={handleDialogClose}
-            />
-            <PMSSettingsDialog
-                visible={visibleDialogId === 7}
+            <PredictDialog
+                visible={visibleDialogId === 1}
                 onClose={handleDialogClose}
             />
         </div>
