@@ -2,7 +2,7 @@
     "model": "informer",
     "data": "custom",
     "root_path": "./data/",
-    "data_path": "filled_DK1_entso-e_combined_dataset_2019_2023.csv",
+    "data_path": "filled_DK1_entso-e_combined_dataset_2019_.csv",
     "target": "Price[Currency/MWh]",
     "features": "MS",
     "cols": [
