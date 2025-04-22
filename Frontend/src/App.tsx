@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Subdivide from './pages/Subdivide/Subdivide';
+import Map from './pages/Map/Map';
 import Home from './pages/Home/Home';
 import 'primereact/resources/themes/lara-light-blue/theme.css'; // Theme
 import 'primereact/resources/primereact.min.css'; // Core CSS
@@ -13,7 +13,7 @@ function App() {
             <Router>
                 <Routes>
                     <Route path="/" element={<Home />}></Route>
-                    <Route path="/Map" element={<Subdivide />}></Route>
+                    <Route path="/Map" element={<Map />}></Route>
                 </Routes>
             </Router>
             <ToastContainer />{' '}

@@ -1,7 +1,7 @@
 import React from 'react';
 import FullMap from '../../components/FullMap/FullMap';
 
-const Subdivide = () => {
+const Map = () => {
     return (
         <>
             <FullMap />
@@ -9,4 +9,4 @@ const Subdivide = () => {
     );
 };
 
-export default Subdivide;
+export default Map;

@@ -19,8 +19,9 @@ const HomeMenu = () => {
     const [visibleDialogId, setVisibleDialogId] = useState<number | null>(null);
 
     const menuItems: MenuItem[] = [
-        { id: 1, label: 'Predict' },
-        { id: 2, label: 'Indlæs produktionsprofiler' },
+        { id: 1, label: 'Show Map', path: '/Map' },
+        { id: 2, label: 'Predict' },
+        { id: 3, label: 'Indlæs produktionsprofiler' },
     ];
 
     const handleDialogOpen = (id: number) => {
@@ -77,12 +78,14 @@ const HomeMenu = () => {
             </div>
 
         
-            <TransmissionDialog
+        
+            <PredictDialog
                 visible={visibleDialogId === 2}
                 onClose={handleDialogClose}
             />
-            <PredictDialog
-                visible={visibleDialogId === 1}
+
+            <TransmissionDialog
+                visible={visibleDialogId === 3}
                 onClose={handleDialogClose}
             />
         </div>
