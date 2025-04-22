@@ -1,4 +1,5 @@
 import { Dispatch, SetStateAction } from 'react';
+import interactiveAreaCodes from './interactiveAreaCodes.ts'; // Import the interactive area codes
 import L from 'leaflet';
 
 export const addInteractivityLayer = (
@@ -13,25 +14,41 @@ export const addInteractivityLayer = (
     const pathLayer = layer as L.Path;
 
     const normalStyle = {
-        color: 'white',
+        color: '#d6d6d6', // Grey border matching water color
         weight: 1,
-        fillColor: '#3388ff',
+        fillColor: interactiveAreaCodes.includes(feature.properties?.area) ? '#3388ff' : '#FFFFFF',
         fillOpacity: 1,
     };
 
+    const fadedStyle = {
+        color: '#d6d6d6', // Grey border matching water color
+        weight: 1,
+        fillColor: '#3388ff', // Blue but faded
+        fillOpacity: 0.5,
+    };
+
     const transparentStyle = {
-        color: '#d6d6d6',
+        color: '#d6d6d6', // Grey border matching water color
         weight: 1,
         fillColor: '#FFFFFF',
         fillOpacity: 1,
     };
 
     const selectedStyle = {
-        color: 'white',
+        color: '#d6d6d6', // Grey border matching water color
         weight: 2, // Highlight border
         fillColor: 'green',
         fillOpacity: 1,
     };
+
+    // Apply the initial style based on whether the area is interactive
+    pathLayer.setStyle(normalStyle);
+
+    // Disable interaction for non-interactive areas
+    if (!interactiveAreaCodes.includes(feature.properties?.area)) {
+        layer.off('click'); // Remove click event for non-interactive areas
+        return;
+    }
 
     // Click event handler
     layer.on('click', () => {
@@ -45,14 +62,22 @@ export const addInteractivityLayer = (
 
             map.eachLayer((layer) => {
                 if (layer instanceof L.Path && !drawnItems.hasLayer(layer)) {
-                    layer.setStyle(normalStyle);
+                    const featureLayer = layer as L.Path;
+                    const featureArea = featureLayer.feature?.properties?.area;
+                    featureLayer.setStyle(
+                        interactiveAreaCodes.includes(featureArea) ? normalStyle : transparentStyle
+                    );
                 }
             });
         } else {
-            // Reset all layers to normal style
+            // Reset all layers to faded or transparent style
             map.eachLayer((layer) => {
                 if (layer instanceof L.Path && !drawnItems.hasLayer(layer)) {
-                    layer.setStyle(transparentStyle);
+                    const featureLayer = layer as L.Path;
+                    const featureArea = featureLayer.feature?.properties?.area;
+                    featureLayer.setStyle(
+                        interactiveAreaCodes.includes(featureArea) ? fadedStyle : transparentStyle
+                    );
                 }
             });
 
@@ -101,7 +126,6 @@ export const addLabelsLayer = (
 
     return labelsLayerGroup;
 };
-
 
 export const removeMarkers = (geojson: L.GeoJSON) => {
     geojson.eachLayer((layer: L.Layer) => {

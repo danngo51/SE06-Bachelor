@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import useUpdateGeoJSON from '../../hooks/useUpdateGeoJSON';
-import useUploadGeoJSON from '../../hooks/useUploadGeoJSON';
 import {
     addInteractivityLayer,
     addLabelsLayer,
@@ -9,6 +8,7 @@ import {
     removeMarkers,
 } from '../../utils/leafletUtilityFunctions';
 import { initializeDrawingTools } from '../../utils/leafletUtilityDraw';
+import interactiveAreaCodes from '../../utils/interactiveAreaCodes.ts'; // Import the interactive area codes
 import FullMapMenu from '../FullMapMenu/FullMapMenu';
 
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
@@ -20,9 +20,6 @@ const FullMap = () => {
     // First load static GeoJSON using useLoadGeoJSON hook
     const { geojson: staticGeoJSON } = useUpdateGeoJSON(geojsonPath);
 
-    // Handle changing of geojson map
-    const { geojson: uploadedGeoJSON, handleMapFileUpload } =
-        useUploadGeoJSON();
 
     // To track the map and the current GeoJSON layer
     const mapRef = useRef<L.Map | null>(null);
@@ -33,7 +30,6 @@ const FullMap = () => {
     const highlightedLayerRef = useRef<L.Layer | null>(null);
     const [highlightBoolean, setHighlightBoolean] = useState(false);
 
-    const [newAreaName, setNewAreaName] = useState('');
 
     const [loading, setLoading] = useState(false);
 
@@ -41,8 +37,8 @@ const FullMap = () => {
         // Initialize the map only if mapContainerRef.current is not null
         if (mapContainerRef.current) {
             const map = L.map(mapContainerRef.current).setView(
-                [51.505, 10.205],
-            5
+                [55.000, 10.000],
+            4
             ); // Set initial view
             mapRef.current = map;
 
@@ -83,53 +79,6 @@ const FullMap = () => {
         }
     }, [staticGeoJSON]); // Re-run only when staticGeoJSON changes
 
-    useEffect(() => {
-        // Check if the uploaded GeoJSON is present and map is initialized
-        if (uploadedGeoJSON && mapRef.current) {
-            const map = mapRef.current;
-
-            // Remove the GeoJSON layer if it exists
-            if (geojsonLayerRef.current) {
-                map.removeLayer(geojsonLayerRef.current);
-                geojsonLayerRef.current = null; // Reset the reference
-            }
-
-            //Remove labels
-            if (geojsonLabelLayerRef.current) {
-                map.removeLayer(geojsonLabelLayerRef.current);
-                geojsonLabelLayerRef.current = null; // Reset the reference
-            }
-
-            // Add the uploaded GeoJSON layer to the map
-            geojsonLayerRef.current = L.geoJSON(uploadedGeoJSON, {
-                style: styleGenerator,
-                onEachFeature: (feature, layer) =>
-                    addInteractivityLayer(
-                        feature,
-                        layer,
-                        highlightedFeatureRef,
-                        (feature, layer) => {
-                            highlightedFeatureRef.current = feature;
-                            highlightedLayerRef.current = layer;
-                        },
-                        map,
-                        drawingRef.current,
-                        setHighlightBoolean
-                    ),
-            }).addTo(map);
-
-            // Iterate through the layers in the GeoJSON layer and remove points (markers)
-            removeMarkers(geojsonLayerRef.current);
-
-            //Re add labels
-            geojsonLabelLayerRef.current = new L.LayerGroup();
-            geojsonLabelLayerRef.current = addLabelsLayer(
-                uploadedGeoJSON,
-                geojsonLabelLayerRef.current
-            );
-            geojsonLabelLayerRef.current.addTo(map);
-        }
-    }, [uploadedGeoJSON]); // Re-run whenever the uploadedGeoJSON changes
 
     //Add drawing tools
     useEffect(() => {
@@ -141,7 +90,6 @@ const FullMap = () => {
             initializeDrawingTools(mapRef.current, drawingRef.current);
         }
     }, []);
-
 
 
     return (
