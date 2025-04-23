@@ -84,7 +84,6 @@ const FullMap = () => {
         }
     }, [staticGeoJSON]); // Re-run only when staticGeoJSON changes
 
-
     //Add drawing tools
     useEffect(() => {
         if (mapRef.current && !drawingRef.current) {
@@ -103,6 +102,12 @@ const FullMap = () => {
         }
     }, [markedArea]); // Log to console whenever markedArea changes
 
+
+
+    const featureProb = () => {
+        console.log('FeatureProb function called');
+    };
+
     return (
         <>
             <LoadingSpinner loading={loading} />
@@ -110,17 +115,13 @@ const FullMap = () => {
                 ref={mapContainerRef} // Map container reference
                 style={{ height: '100vh', width: '100%' }} // Full screen map
             />
-            {/* 
+            
             <FullMapMenu
-                handleMapFileUpload={handleMapFileUpload} 
-                handleExcelFileUpload={handleExcelFileUpload}
-                subdivide={subdivide}
+                featureProb={featureProb} 
                 highlightBoolean={highlightBoolean}
-                exportFeatureCollection={handleExportOfFiles}
-                replaceAreaName={replaceAreaName}
-                setAreaName={setNewAreaName}
+                
             />
-            */}
+            
         </>
     );
 };

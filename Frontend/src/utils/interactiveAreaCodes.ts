@@ -1,7 +1,7 @@
 export const interactiveAreaCodes = [
     "DK1",
-    "DELU",
     "DK2",
+    "DELU",
     "AT",
     "BE",
     "CH",
