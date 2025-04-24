@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { PredictionDataResponse } from '../data/predictionTypes';
-import { PREDICTION_DATA_SERIES, API_ENDPOINTS, API_PARAMS } from '../data/constants';
+import { API_ENDPOINTS, API_PARAMS } from '../data/constants';
 
 // Base URL from environment or default
 const API_BASE_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8000';
