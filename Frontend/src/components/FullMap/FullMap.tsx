@@ -139,8 +139,8 @@ const FullMap = () => {
             const data = await fetchPredictionData(countryCode || 'XX', date);
             console.log('Raw prediction data received:', data);
             
-            // Check the data structure
-            if (!data.timestamp || !data.hourlyData) {
+            // Check the data structure - updated to match our new data format
+            if (!data.hourlyData || !data.predictionDate) {
                 console.error('Received data has incorrect structure:', data);
                 alert('Error: Prediction data has an invalid format');
                 setLoading(false);

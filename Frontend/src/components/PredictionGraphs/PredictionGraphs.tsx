@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { 
   LineChart, Line, BarChart, Bar, 
   XAxis, YAxis, CartesianGrid, Tooltip, 
-  Legend, ResponsiveContainer, AreaChart, Area
+  Legend, ResponsiveContainer
 } from 'recharts';
-import { PredictionDataResponse } from '../../utils/apiSelector';
+import { PredictionDataResponse } from '../../data/predictionTypes';
+import { PREDICTION_DATA_SERIES } from '../../data/constants';
 import styles from './PredictionGraphs.module.css';
 
 interface PredictionGraphsProps {
@@ -25,23 +26,24 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
   countryName,
   predictionDate
 }) => {
-  const [activeGraph, setActiveGraph] = useState<'line' | 'bar' | 'area'>('line');
+  const [activeGraph, setActiveGraph] = useState<'line' | 'bar'>('line');
 
   if (!isVisible || !data) return null;
   
   // Process hourlyData for chart display
-  const chartData = data.timestamp.map((time, index) => {
-    const hour = index.toString();
-    const hourData = data.hourlyData[hour] || { 'Prediction Informer': 0, 'actual': 0, 'tbd': 0 };
+  const chartData = Object.entries(data.hourlyData).map(([hour, hourData]) => {
+    // Generate timestamp for each hour
+    const hourNum = parseInt(hour);
+    const formattedHour = hourNum.toString().padStart(2, '0');
+    const timestamp = `${data.predictionDate}T${formattedHour}:00:00`;
     
     return {
-      time,
-      'Prediction Informer': hourData['Prediction Informer'],
-      'actual': hourData['actual'],
-      'tbd': hourData['tbd'],
-      hour: new Date(time).getHours()
+      time: timestamp,
+      [PREDICTION_DATA_SERIES.PREDICTION_MODEL]: hourData[PREDICTION_DATA_SERIES.PREDICTION_MODEL] || 0,
+      [PREDICTION_DATA_SERIES.ACTUAL_PRICE]: hourData[PREDICTION_DATA_SERIES.ACTUAL_PRICE] || 0,
+      hour: hourNum
     };
-  });
+  }).sort((a, b) => a.hour - b.hour); // Sort by hour to ensure correct order
 
   return (
     <div className={styles.graphContainer}>
@@ -71,12 +73,6 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
         >
           Bar Chart
         </button>
-        <button 
-          onClick={() => setActiveGraph('area')}
-          className={`${styles.graphTypeButton} ${activeGraph === 'area' ? styles.active : ''}`}
-        >
-          Area Chart
-        </button>
       </div>
       
       <div className={styles.graphItem}>
@@ -91,13 +87,13 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
               />
               <YAxis label={{ value: 'Price', angle: -90, position: 'insideLeft' }} />
               <Tooltip 
-                formatter={(value) => [`${value.toFixed(2)}`, '']}
+                formatter={(value) => (typeof value === 'number' ? [`${value.toFixed(2)}`, ''] : [value, ''])}
                 labelFormatter={(hour) => `Hour: ${hour}:00`}
               />
               <Legend />
               <Line 
                 type="monotone" 
-                dataKey="Prediction Informer" 
+                dataKey={PREDICTION_DATA_SERIES.PREDICTION_MODEL} 
                 stroke="#8884d8" 
                 name="Prediction Model"
                 strokeWidth={2}
@@ -106,24 +102,15 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
               />
               <Line 
                 type="monotone" 
-                dataKey="actual" 
+                dataKey={PREDICTION_DATA_SERIES.ACTUAL_PRICE} 
                 stroke="#82ca9d" 
                 name="Actual Price"
                 strokeWidth={2}
                 dot={{ strokeWidth: 2, r: 3 }}
                 activeDot={{ r: 8 }} 
               />
-              <Line 
-                type="monotone" 
-                dataKey="tbd" 
-                stroke="#ffc658" 
-                name="Additional Metric"
-                strokeWidth={2}
-                dot={{ strokeWidth: 2, r: 3 }}
-                activeDot={{ r: 8 }} 
-              />
             </LineChart>
-          ) : activeGraph === 'bar' ? (
+          ) : (
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
@@ -133,57 +120,17 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
               />
               <YAxis label={{ value: 'Price', angle: -90, position: 'insideLeft' }} />
               <Tooltip 
-                formatter={(value) => [`${value.toFixed(2)}`, '']}
+                formatter={(value) => (typeof value === 'number' ? [`${value.toFixed(2)}`, ''] : [value, ''])}
                 labelFormatter={(hour) => `Hour: ${hour}:00`}
               />
               <Legend />
-              <Bar dataKey="Prediction Informer" fill="#8884d8" name="Prediction Model" />
-              <Bar dataKey="actual" fill="#82ca9d" name="Actual Price" />
-              <Bar dataKey="tbd" fill="#ffc658" name="Additional Metric" />
+              <Bar dataKey={PREDICTION_DATA_SERIES.PREDICTION_MODEL} fill="#8884d8" name="Prediction Model" />
+              <Bar dataKey={PREDICTION_DATA_SERIES.ACTUAL_PRICE} fill="#82ca9d" name="Actual Price" />
             </BarChart>
-          ) : (
-            <AreaChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="hour"
-                tick={{ fontSize: 12 }}
-                label={{ value: 'Hour of day', position: 'insideBottom', offset: -5 }}
-              />
-              <YAxis label={{ value: 'Price', angle: -90, position: 'insideLeft' }} />
-              <Tooltip 
-                formatter={(value) => [`${value.toFixed(2)}`, '']}
-                labelFormatter={(hour) => `Hour: ${hour}:00`}
-              />
-              <Legend />
-              <Area 
-                type="monotone" 
-                dataKey="Prediction Informer" 
-                stroke="#8884d8" 
-                fill="#8884d8"
-                fillOpacity={0.3}
-                name="Prediction Model" 
-              />
-              <Area 
-                type="monotone" 
-                dataKey="actual" 
-                stroke="#82ca9d" 
-                fill="#82ca9d"
-                fillOpacity={0.3}
-                name="Actual Price" 
-              />
-              <Area 
-                type="monotone" 
-                dataKey="tbd" 
-                stroke="#ffc658" 
-                fill="#ffc658"
-                fillOpacity={0.3}
-                name="Additional Metric" 
-              />
-            </AreaChart>
           )}
         </ResponsiveContainer>
         <p className={styles.graphCaption}>
-          Comparing the prediction model output with actual prices across 24 hours
+          Comparing prediction model output with actual prices across 24 hours
         </p>
       </div>
     </div>

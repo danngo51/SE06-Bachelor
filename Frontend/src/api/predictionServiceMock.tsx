@@ -1,24 +1,5 @@
-import axios from 'axios';
-import { toast } from 'react-toastify';
-
-// Base URL from environment or default
-const API_BASE_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8000/';
-
-// Type definition for prediction data response with hourly values
-export interface HourlyPredictionData {
-  'Prediction Informer': number;
-  'actual': number;
-  'tbd': number;
-}
-
-export interface PredictionDataResponse {
-  timestamp: string[];
-  hourlyData: {
-    [hour: string]: HourlyPredictionData;
-  };
-  countryCode: string;
-  predictionDate: string;
-}
+import { PredictionDataResponse } from '../data/predictionTypes';
+import { PREDICTION_DATA_SERIES } from '../data/constants';
 
 /**
  * Mock function to generate prediction data for testing
@@ -37,14 +18,8 @@ export const fetchPredictionData = async (
   // For development, use mock data instead of actual API calls
   console.log(`Mock data generated for ${safeCountryCode} on ${safeDate}`);
   
-  // Create a timestamp array for the 24 hours of the selected date
-  const timestamps = Array.from({ length: 24 }, (_, i) => {
-    const hour = i.toString().padStart(2, '0');
-    return `${safeDate}T${hour}:00:00`;
-  });
-  
   // Generate mock hourly data
-  const hourlyData: { [hour: string]: HourlyPredictionData } = {};
+  const hourlyData: { [hour: string]: Record<string, number> } = {};
   
   for (let hour = 0; hour < 24; hour++) {
     // Safely calculate country factor
@@ -73,9 +48,8 @@ export const fetchPredictionData = async (
     const hourlyPattern = hour < 7 || hour > 19 ? 0.7 : 1.3; // Lower at night, higher during day
     
     hourlyData[hour.toString()] = {
-      'Prediction Informer': baseValue * hourlyPattern + (Math.random() * 10),
-      'actual': baseValue * hourlyPattern * (1 + (Math.random() * 0.2 - 0.1)) + dateFactor,
-      'tbd': baseValue * 0.8 * hourlyPattern + (Math.sin(hour) * 5)
+      [PREDICTION_DATA_SERIES.PREDICTION_MODEL]: baseValue * hourlyPattern + (Math.random() * 10),
+      [PREDICTION_DATA_SERIES.ACTUAL_PRICE]: baseValue * hourlyPattern * (1 + (Math.random() * 0.2 - 0.1)) + dateFactor
     };
   }
   
@@ -83,7 +57,6 @@ export const fetchPredictionData = async (
   await new Promise(resolve => setTimeout(resolve, 800));
   
   return {
-    timestamp: timestamps,
     hourlyData: hourlyData,
     countryCode: safeCountryCode,
     predictionDate: safeDate

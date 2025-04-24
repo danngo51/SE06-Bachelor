@@ -1,24 +1,10 @@
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { PredictionDataResponse } from '../data/predictionTypes';
+import { PREDICTION_DATA_SERIES, API_ENDPOINTS, API_PARAMS } from '../data/constants';
 
 // Base URL from environment or default
 const API_BASE_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8000';
-
-// Type definition for prediction data response with hourly values
-export interface HourlyPredictionData {
-  'Prediction Informer': number;
-  'actual': number;
-  'tbd': number;
-}
-
-export interface PredictionDataResponse {
-  timestamp: string[];
-  hourlyData: {
-    [hour: string]: HourlyPredictionData;
-  };
-  countryCode: string;
-  predictionDate: string;
-}
 
 /**
  * Fetches prediction data for a specific country and date from the backend API
@@ -39,11 +25,11 @@ export const fetchPredictionData = async (
     
     // Call the backend API
     const response = await axios.get(
-      `${API_BASE_URL}/api/predictions`, 
+      `${API_BASE_URL}${API_ENDPOINTS.PREDICTIONS}`, 
       { 
         params: { 
-          country: safeCountryCode,
-          date: safeDate 
+          [API_PARAMS.COUNTRY]: safeCountryCode,
+          [API_PARAMS.DATE]: safeDate 
         } 
       }
     );
@@ -71,10 +57,10 @@ export const fetchAvailablePredictionDates = async (
 ): Promise<string[]> => {
   try {
     const response = await axios.get(
-      `${API_BASE_URL}/api/predictions/available-dates`,
+      `${API_BASE_URL}${API_ENDPOINTS.AVAILABLE_DATES}`,
       {
         params: {
-          country: countryCode
+          [API_PARAMS.COUNTRY]: countryCode
         }
       }
     );
