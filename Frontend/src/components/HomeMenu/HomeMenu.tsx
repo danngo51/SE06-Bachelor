@@ -3,7 +3,6 @@ import styles from './HomeMenu.module.css';
 import strategiLogo from '../../assets/images/strategi-rum.png';
 import lightningSymbol from '../../assets/svg/lightning.svg';
 import { Link } from 'react-router-dom';
-import TransmissionDialog from '../Dialog/TransmissionDialog/TransmissionDialog';
 import PredictDialog from '../Dialog/PredictDialog/PredictDialog';
 
 // Define the structure of menu items
@@ -20,7 +19,6 @@ const HomeMenu = () => {
     const menuItems: MenuItem[] = [
         { id: 1, label: 'Show Map', path: '/Map' },
         { id: 2, label: 'Predict' },
-        { id: 3, label: 'Indlæs produktionsprofiler' },
     ];
 
     const handleDialogOpen = (id: number) => {
@@ -75,18 +73,12 @@ const HomeMenu = () => {
                     </div>
                 ))}
             </div>
-
-        
         
             <PredictDialog
                 visible={visibleDialogId === 2}
                 onClose={handleDialogClose}
             />
 
-            <TransmissionDialog
-                visible={visibleDialogId === 3}
-                onClose={handleDialogClose}
-            />
         </div>
     );
 };
