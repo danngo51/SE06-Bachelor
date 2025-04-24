@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction } from 'react';
-import interactiveAreaCodes from './interactiveAreaCodes.ts'; // Import the interactive area codes
+import interactiveAreaCodes from './interactiveAreaCodes'; // Import the interactive area codes
 import L from 'leaflet';
 
 export const addInteractivityLayer = (

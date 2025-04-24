@@ -9,66 +9,86 @@
 }
 
 .labelButton {
-    display: inline-block; /* Make it behave like a button */
-    padding: 10px 20px; /* Add padding for a button-like look */
-    background-color: #007bff; /* Button background color */
-    color: #ffffff; /* Button text color */
-    font-size: 16px; /* Text size */
-    font-weight: bold; /* Bold text */
-    border: none; /* Remove border */
-    border-radius: 5px; /* Rounded corners */
-    cursor: pointer; /* Pointer cursor on hover */
-    text-align: center; /* Center-align text */
-    text-decoration: none; /* Remove text underline */
-    transition: background-color 0.3s ease; /* Smooth color transition */
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+    margin-top: 10px;
+    width: 100%;
 }
 
 .labelButton:hover {
-    background-color: #0056b3; /* Darker blue on hover */
+    background-color: #0056b3;
 }
 
 .labelButtonDisabled {
-    background-color: rgba(0, 123, 255, 0.5); /* Transparent blue */
-    display: inline-block; /* Make it behave like a button */
-    padding: 10px 20px; /* Add padding for a button-like look */
-    color: #ffffff; /* Button text color */
-    font-size: 16px; /* Text size */
-    font-weight: bold; /* Bold text */
-    border: none; /* Remove border */
-    border-radius: 5px; /* Rounded corners */
-    cursor: pointer; /* Pointer cursor on hover */
-    text-align: center; /* Center-align text */
-    text-decoration: none; /* Remove text underline */
-    transition: background-color 0.3s ease; /* Smooth color transition */
+    background-color: #cccccc;
+    display: inline-block;
+    padding: 10px 20px;
+    color: #666666;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: not-allowed;
+    text-align: center;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+    margin-top: 10px;
+    width: 100%;
 }
 
 .areaNameContainer {
     width: 100%;
     display: flex;
     flex-direction: column;
-}
-
-.customInput {
-    height: 2rem;
-    border: 2px solid #ddd;
-    font-size: 16px;
-    background-color: #fff;
-    color: #333;
+    background-color: whitesmoke;
+    color: black;
+    padding: 15px 30px;
+    border-radius: 10px;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    outline: none;
+    align-items: center;
 }
 
-.customInput:focus {
-    border-color: #6c63ff;
-    box-shadow: 0 4px 12px rgba(108, 99, 255, 0.4);
+.expandedContainer {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    min-width: 250px;
 }
 
-.customInput::placeholder {
-    color: #aaa;
-    font-style: italic;
+.areaNameLabel {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-align: center;
 }
 
-.customInput:hover {
-    border-color: #888;
+.datePickerContainer {
+    width: 100%;
+    margin: 10px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.dateLabel {
+    font-size: 16px;
+    margin-bottom: 5px;
+    text-align: center;
+}
+
+.datePicker {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+    margin-bottom: 5px;
 }

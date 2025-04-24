@@ -9,6 +9,9 @@ import {
 } from '../../utils/leafletUtilityFunctions';
 import { initializeDrawingTools } from '../../utils/leafletUtilityDraw';
 import FullMapMenu from '../FullMapMenu/FullMapMenu';
+// Import from the selector utility instead of directly from the service files
+import { fetchPredictionData, PredictionDataResponse } from '../../utils/apiSelector';
+import PredictionGraphs from '../PredictionGraphs/PredictionGraphs';
 
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 
@@ -19,7 +22,6 @@ const FullMap = () => {
     // First load static GeoJSON using useLoadGeoJSON hook
     const { geojson: staticGeoJSON } = useUpdateGeoJSON(geojsonPath);
 
-
     // To track the map and the current GeoJSON layer
     const mapRef = useRef<L.Map | null>(null);
     const geojsonLayerRef = useRef<L.GeoJSON | null>(null); // GeoJSON layer
@@ -29,9 +31,13 @@ const FullMap = () => {
     const highlightedLayerRef = useRef<L.Layer | null>(null);
     const [highlightBoolean, setHighlightBoolean] = useState(false);
     const [markedArea, setMarkedArea] = useState<GeoJSON.Feature | null>(null); // State to track the marked area as an object
-
-
     const [loading, setLoading] = useState(false);
+    const [predictionData, setPredictionData] = useState<PredictionDataResponse | null>(null);
+    const [showGraphs, setShowGraphs] = useState<boolean>(false);
+    const [selectedDate, setSelectedDate] = useState<string>('');
+    // New state variables to store the prediction info
+    const [predictionCountry, setPredictionCountry] = useState<string>('');
+    const [predictionCountryCode, setPredictionCountryCode] = useState<string>('');
 
     useEffect(() => {
         // Initialize the map only if mapContainerRef.current is not null
@@ -104,9 +110,70 @@ const FullMap = () => {
 
 
 
-    const featureProb = () => {
-        console.log('FeatureProb function called');
+    const featureProb = async (date: string) => {
+        if (!markedArea || !markedArea.properties) {
+            console.error('No country selected for prediction');
+            return;
+        }
+
+        const countryName = markedArea.properties.country;
+        const countryCode = markedArea.properties.iso_a2;
+        
+        // Check if countryCode exists, use a default if not
+        if (!countryCode) {
+            console.warn(`No ISO code found for ${countryName}, using 'XX' as fallback`);
+        }
+        
+        console.log(`Prediction requested for ${countryName} (${countryCode || 'XX'}) on date: ${date}`);
+        
+        // Store the selected date and country for the prediction
+        setSelectedDate(date);
+        setPredictionCountry(countryName || 'Unknown Country');
+        setPredictionCountryCode(countryCode || 'XX');
+        
+        try {
+            console.log('Starting to fetch prediction data...');
+            setLoading(true);
+            
+            // Call our prediction service to fetch the data, use 'XX' as fallback if no country code
+            const data = await fetchPredictionData(countryCode || 'XX', date);
+            console.log('Raw prediction data received:', data);
+            
+            // Check the data structure
+            if (!data.timestamp || !data.hourlyData) {
+                console.error('Received data has incorrect structure:', data);
+                alert('Error: Prediction data has an invalid format');
+                setLoading(false);
+                return;
+            }
+            
+            setPredictionData(data);
+            setShowGraphs(true);
+            console.log('Prediction data set to state, showGraphs set to true');
+            
+        } catch (error) {
+            console.error('Error fetching prediction data:', error);
+            alert('Error fetching prediction data. See console for details.');
+        } finally {
+            setLoading(false);
+        }
     };
+    
+    // Function to close the graphs
+    const handleCloseGraphs = () => {
+        setShowGraphs(false);
+    };
+
+    // Add this for debugging
+    useEffect(() => {
+        if (predictionData) {
+            console.log('=== DEBUG INFO ===');
+            console.log('Prediction data state updated:', predictionData);
+            console.log('showGraphs state:', showGraphs);
+            console.log('selectedDate:', selectedDate);
+            console.log('markedArea:', markedArea);
+        }
+    }, [predictionData, showGraphs, selectedDate, markedArea]);
 
     return (
         <>
@@ -119,9 +186,17 @@ const FullMap = () => {
             <FullMapMenu
                 featureProb={featureProb} 
                 highlightBoolean={highlightBoolean}
-                
+                markedArea={markedArea} 
             />
             
+            {/* Render prediction graphs based on showGraphs state, not on markedArea */}
+            <PredictionGraphs
+                data={predictionData}
+                isVisible={showGraphs}
+                onClose={handleCloseGraphs}
+                countryName={predictionCountry}
+                predictionDate={selectedDate}
+            />
         </>
     );
 };

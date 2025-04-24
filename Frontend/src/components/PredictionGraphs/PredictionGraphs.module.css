@@ -1,0 +1,83 @@
+.graphContainer {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    width: 60%;
+    max-width: 800px;
+    max-height: 500px;
+    overflow: auto;
+}
+
+.graphHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.graphTitle {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 0;
+}
+
+.closeButton {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 20px;
+    color: #666;
+}
+
+.closeButton:hover {
+    color: #333;
+}
+
+.graphControls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.graphTypeButton {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    background-color: #f8f8f8;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.graphTypeButton:hover {
+    background-color: #eaeaea;
+}
+
+.graphTypeButton.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.graphItem {
+    margin-bottom: 20px;
+}
+
+.graphCaption {
+    font-size: 14px;
+    text-align: center;
+    color: #666;
+    margin-top: 5px;
+}
+
+@media (max-width: 768px) {
+    .graphContainer {
+        width: 90%;
+        left: 5%;
+    }
+}
