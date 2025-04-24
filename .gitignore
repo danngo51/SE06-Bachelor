@@ -54,9 +54,7 @@ logs/
 *.hdf5
 *.joblib
 
-# --- Machine Learning Model Files ---
-*.pt
-*.pth
+
 
 
 # --- Docker ---
