@@ -37,7 +37,7 @@ const FullMap = () => {
     const [selectedDate, setSelectedDate] = useState<string>('');
     // New state variables to store the prediction info
     const [predictionCountry, setPredictionCountry] = useState<string>('');
-    const [ setPredictionCountryCode] = useState<string>('');
+    const [predictionCountryCode, setPredictionCountryCode] = useState<string>('');
 
     useEffect(() => {
         // Initialize the map only if mapContainerRef.current is not null
