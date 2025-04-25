@@ -19,14 +19,14 @@ export const fetchPredictionData = async (
   console.log(`Mock data generated for ${safeCountryCode} on ${safeDate}`);
   
   // Generate mock hourly data
-  const hourlyData: { [hour: string]: Record<string, number> } = {};
-  
-  for (let hour = 0; hour < 24; hour++) {
+  const generateHourlyDataForCountry = (code: string) => {
+    const hourlyData: { [hour: string]: Record<string, number> } = {};
+    
     // Safely calculate country factor
     let countryFactor = 200; // Default value
     try {
-      if (safeCountryCode.length >= 2) {
-        countryFactor = safeCountryCode.charCodeAt(0) + safeCountryCode.charCodeAt(1);
+      if (code.length >= 2) {
+        countryFactor = code.charCodeAt(0) + code.charCodeAt(1);
       }
     } catch (error) {
       console.warn('Error calculating country factor, using default', error);
@@ -43,48 +43,52 @@ export const fetchPredictionData = async (
       console.warn('Error calculating date factor, using default', error);
     }
     
-    // Create variation in the data
-    const baseValue = 50 + Math.sin(hour / 3) * 20 + (countryFactor % 10);
-    const hourlyPattern = hour < 7 || hour > 19 ? 0.7 : 1.3; // Lower at night, higher during day
+    for (let hour = 0; hour < 24; hour++) {
+      // Create variation in the data
+      const baseValue = 50 + Math.sin(hour / 3) * 20 + (countryFactor % 10);
+      const hourlyPattern = hour < 7 || hour > 19 ? 0.7 : 1.3; // Lower at night, higher during day
+      
+      hourlyData[hour.toString()] = {
+        [PREDICTION_DATA_SERIES.PREDICTION_MODEL]: baseValue * hourlyPattern + (Math.random() * 10),
+        [PREDICTION_DATA_SERIES.ACTUAL_PRICE]: baseValue * hourlyPattern * (1 + (Math.random() * 0.2 - 0.1)) + dateFactor
+      };
+    }
     
-    hourlyData[hour.toString()] = {
-      [PREDICTION_DATA_SERIES.PREDICTION_MODEL]: baseValue * hourlyPattern + (Math.random() * 10),
-      [PREDICTION_DATA_SERIES.ACTUAL_PRICE]: baseValue * hourlyPattern * (1 + (Math.random() * 0.2 - 0.1)) + dateFactor
-    };
+    return hourlyData;
+  };
+  
+  // Create an array of country data objects
+  const countries = [
+    {
+      countryCode: safeCountryCode,
+      hourlyData: generateHourlyDataForCountry(safeCountryCode)
+    }
+  ];
+  
+  // If the countryCode is "ALL", add some additional mock countries
+  if (safeCountryCode === "ALL") {
+    countries.push(
+      {
+        countryCode: "DE",
+        hourlyData: generateHourlyDataForCountry("DE")
+      },
+      {
+        countryCode: "DK1",
+        hourlyData: generateHourlyDataForCountry("DK1")
+      },
+      {
+        countryCode: "SE",
+        hourlyData: generateHourlyDataForCountry("SE")
+      }
+    );
   }
   
   // Simulate network delay
   await new Promise(resolve => setTimeout(resolve, 800));
   
   return {
-    hourlyData: hourlyData,
-    countryCode: safeCountryCode,
-    predictionDate: safeDate
+    predictionDate: safeDate,
+    countries: countries
   };
 };
 
-/**
- * Mock function to fetch available prediction dates
- * @param countryCode The ISO country code
- * @returns Array of dates for which predictions are available
- */
-export const fetchAvailablePredictionDates = async (
-  countryCode: string
-): Promise<string[]> => {
-  // Generate 10 dates starting from today
-  const today = new Date();
-  const dates: string[] = [];
-  
-  for (let i = 0; i < 10; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i);
-    dates.push(date.toISOString().split('T')[0]);
-  }
-  
-  console.log(`Mock available dates generated for ${countryCode}:`, dates);
-  
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  return dates;
-};

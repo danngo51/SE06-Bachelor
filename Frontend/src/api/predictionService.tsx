@@ -4,10 +4,10 @@ import { PredictionDataResponse } from '../data/predictionTypes';
 import { API_ENDPOINTS, API_PARAMS } from '../data/constants';
 
 // Base URL from environment or default
-const API_BASE_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8000';
+const API_BASE_URL =  'http://127.0.0.1:8000';
 
 /**
- * Fetches prediction data for a specific country and date from the backend API
+ * Fetches prediction data for one or more countries and a specific date from the backend API
  * @param countryCode The ISO country code (e.g., 'DK', 'DE')
  * @param date The date for prediction in YYYY-MM-DD format
  * @returns Promise with prediction data for generating graphs
@@ -23,21 +23,26 @@ export const fetchPredictionData = async (
     
     console.log(`Fetching prediction data for ${safeCountryCode} on ${safeDate}`);
     
-    // Call the backend API
-    const response = await axios.get(
+    // Call the backend API with the new JSON format
+    const response = await axios.post(
       `${API_BASE_URL}${API_ENDPOINTS.PREDICTIONS}`, 
-      { 
-        params: { 
-          [API_PARAMS.COUNTRY]: safeCountryCode,
-          [API_PARAMS.DATE]: safeDate 
-        } 
+      {
+        country_codes: [safeCountryCode], // Wrap the country code in an array
+        date: safeDate
       }
     );
     
     // Data validation
     const data = response.data;
-    if (!data.timestamp || !data.hourlyData) {
+    if (!data.predictionDate || !data.countries || !Array.isArray(data.countries)) {
       throw new Error('Invalid data format returned from API');
+    }
+    
+    // Validate that each country has hourly data
+    for (const country of data.countries) {
+      if (!country.countryCode || !country.hourlyData) {
+        throw new Error('Invalid country data format returned from API');
+      }
     }
     
     return data;
@@ -48,26 +53,3 @@ export const fetchPredictionData = async (
   }
 };
 
-/**
- * Fetches available prediction dates for a country
- * This could be useful if you want to limit date selection to available dates
- */
-export const fetchAvailablePredictionDates = async (
-  countryCode: string
-): Promise<string[]> => {
-  try {
-    const response = await axios.get(
-      `${API_BASE_URL}${API_ENDPOINTS.AVAILABLE_DATES}`,
-      {
-        params: {
-          [API_PARAMS.COUNTRY]: countryCode
-        }
-      }
-    );
-    
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching available prediction dates:', error);
-    return []; // Return empty array if dates can't be fetched
-  }
-};
