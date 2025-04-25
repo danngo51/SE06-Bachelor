@@ -8,11 +8,15 @@ export interface HourlyPredictionData {
   [key: string]: number; // Allow dynamic keys for model names
 }
 
-export interface PredictionDataResponse {
-  // We can remove the timestamp array since it can be constructed from predictionDate and hour keys
+// Structure for a single country's prediction data
+export interface CountryPredictionData {
+  countryCode: string;
   hourlyData: {
     [hour: string]: HourlyPredictionData;
   };
-  countryCode: string;
+}
+
+export interface PredictionDataResponse {
   predictionDate: string;
+  countries: CountryPredictionData[];
 }

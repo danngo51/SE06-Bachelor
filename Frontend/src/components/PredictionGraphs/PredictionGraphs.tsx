@@ -4,7 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, 
   Legend, ResponsiveContainer
 } from 'recharts';
-import { PredictionDataResponse } from '../../data/predictionTypes';
+import { PredictionDataResponse, CountryPredictionData } from '../../data/predictionTypes';
 import { PREDICTION_DATA_SERIES } from '../../data/constants';
 import styles from './PredictionGraphs.module.css';
 
@@ -18,6 +18,7 @@ interface PredictionGraphsProps {
 
 /**
  * Component to display prediction data using various graph types
+ * Now handles multiple countries by showing the first country in the array by default
  */
 const PredictionGraphs: React.FC<PredictionGraphsProps> = ({ 
   data, 
@@ -30,8 +31,15 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
 
   if (!isVisible || !data) return null;
   
+  // Get the first country's data from the countries array
+  const countryData = data.countries && data.countries.length > 0 
+    ? data.countries[0] 
+    : null;
+    
+  if (!countryData) return null;
+  
   // Process hourlyData for chart display
-  const chartData = Object.entries(data.hourlyData).map(([hour, hourData]) => {
+  const chartData = Object.entries(countryData.hourlyData).map(([hour, hourData]) => {
     // Generate timestamp for each hour
     const hourNum = parseInt(hour);
     const formattedHour = hourNum.toString().padStart(2, '0');

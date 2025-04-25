@@ -11,7 +11,7 @@ export const PREDICTION_DATA_SERIES = {
 
 // Other constants related to the prediction feature
 export const API_ENDPOINTS = {
-  PREDICTIONS: '/api/predictions',
+  PREDICTIONS: '/predict/predict',
   AVAILABLE_DATES: '/api/predictions/available-dates'
 };
 

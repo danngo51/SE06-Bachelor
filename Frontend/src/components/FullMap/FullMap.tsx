@@ -139,10 +139,19 @@ const FullMap = () => {
             const data = await fetchPredictionData(countryCode || 'XX', date);
             console.log('Raw prediction data received:', data);
             
-            // Check the data structure - updated to match our new data format
-            if (!data.hourlyData || !data.predictionDate) {
+            // Check the data structure for the new format with multiple countries
+            if (!data.predictionDate || !data.countries || !Array.isArray(data.countries) || data.countries.length === 0) {
                 console.error('Received data has incorrect structure:', data);
                 alert('Error: Prediction data has an invalid format');
+                setLoading(false);
+                return;
+            }
+            
+            // Validate that the first country has hourly data
+            const firstCountry = data.countries[0];
+            if (!firstCountry.countryCode || !firstCountry.hourlyData) {
+                console.error('First country data is invalid:', firstCountry);
+                alert('Error: Country data has an invalid format');
                 setLoading(false);
                 return;
             }
