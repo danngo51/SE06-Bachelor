@@ -1,0 +1,94 @@
+.fullMapMenuContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    position: absolute;
+    z-index: 9999;
+    top: 2%;
+    right: 2%;
+}
+
+.labelButton {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+    margin-top: 10px;
+    width: 100%;
+}
+
+.labelButton:hover {
+    background-color: #0056b3;
+}
+
+.labelButtonDisabled {
+    background-color: #cccccc;
+    display: inline-block;
+    padding: 10px 20px;
+    color: #666666;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: not-allowed;
+    text-align: center;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+    margin-top: 10px;
+    width: 100%;
+}
+
+.areaNameContainer {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: whitesmoke;
+    color: black;
+    padding: 15px 30px;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    align-items: center;
+}
+
+.expandedContainer {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    min-width: 250px;
+}
+
+.areaNameLabel {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.datePickerContainer {
+    width: 100%;
+    margin: 10px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.dateLabel {
+    font-size: 16px;
+    margin-bottom: 5px;
+    text-align: center;
+}
+
+.datePicker {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+    margin-bottom: 5px;
+}
