@@ -38,10 +38,22 @@ export const fetchPredictionData = async (
       throw new Error('Invalid data format returned from API');
     }
     
-    // Validate that each country has hourly data
+    // Validate that each country has hourly data with the expected model fields
     for (const country of data.countries) {
       if (!country.countryCode || !country.hourlyData) {
         throw new Error('Invalid country data format returned from API');
+      }
+      
+      // Check at least one hour entry to validate the structure has all required model fields
+      const hourKeys = Object.keys(country.hourlyData);
+      if (hourKeys.length > 0) {
+        const sampleHourData = country.hourlyData[hourKeys[0]];
+        if (!('informer' in sampleHourData && 
+              'gru' in sampleHourData && 
+              'model' in sampleHourData && 
+              'actual' in sampleHourData)) {
+          console.warn('Missing expected model fields in hourly data', sampleHourData);
+        }
       }
     }
     

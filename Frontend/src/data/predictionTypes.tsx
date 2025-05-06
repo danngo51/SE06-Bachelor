@@ -5,7 +5,10 @@
 
 // Type definition for prediction data response with hourly values
 export interface HourlyPredictionData {
-  [key: string]: number; // Allow dynamic keys for model names
+  informer: number;
+  gru: number;
+  model: number;
+  actual: number;
 }
 
 // Structure for a single country's prediction data

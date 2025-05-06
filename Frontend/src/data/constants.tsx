@@ -5,7 +5,9 @@
 
 // Data series names for prediction models
 export const PREDICTION_DATA_SERIES = {
-  PREDICTION_MODEL: 'Model',
+  INFORMER_MODEL: 'informer',
+  GRU_MODEL: 'gru',
+  PREDICTION_MODEL: 'model',
   ACTUAL_PRICE: 'actual'
 };
 

@@ -4,7 +4,7 @@ import { fetchPredictionData as realFetchPredictionData } from '../api/predictio
 import { PredictionDataResponse } from '../data/predictionTypes';
 
 // Check environment variable or local storage setting
-const useMockApi = false;
+const useMockApi = true;
 
 // Export the appropriate implementation
 export const fetchPredictionData = useMockApi ? mockFetchPredictionData : realFetchPredictionData;

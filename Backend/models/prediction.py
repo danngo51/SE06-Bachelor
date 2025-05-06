@@ -17,7 +17,9 @@ class PredictionRequest(BaseModel):
 
 class HourlyData(BaseModel):
     """Hourly data for a country as expected by the frontend"""
-    Model: float = Field(..., description="Model prediction price")
+    informer: float = Field(..., description="Informer model prediction price")
+    gru: float = Field(..., description="GRU model prediction price")
+    model: float = Field(..., description="Combined model prediction price")
     actual: float = Field(..., description="Actual price (if available)")
 
 class CountryData(BaseModel):
@@ -41,16 +43,16 @@ class FrontendPredictionResponse(BaseModel):
                     {
                         "countryCode": "DE",
                         "hourlyData": {
-                            "0": {"Model": 45.2, "actual": 47.5},
-                            "1": {"Model": 42.8, "actual": 44.1},
+                            "0": {"informer": 45.2, "gru": 44.8, "model": 45.0, "actual": 47.5},
+                            "1": {"informer": 42.8, "gru": 43.1, "model": 42.9, "actual": 44.1},
                             # ... other hours
                         }
                     },
                     {
                         "countryCode": "DK1",
                         "hourlyData": {
-                            "0": {"Model": 45.2, "actual": 45.5},
-                            "1": {"Model": 45.8, "actual": 46.1},
+                            "0": {"informer": 45.2, "gru": 45.5, "model": 45.3, "actual": 45.5},
+                            "1": {"informer": 45.8, "gru": 46.1, "model": 45.9, "actual": 46.1},
                             # ... other hours
                         }
                     }
@@ -105,8 +107,15 @@ class PredictionResponse(BaseModel):
         for country_data in self.predictions:
             hourly_data = {}
             for hour, data in country_data.hourly_data.items():
+                # Extract model-specific predictions if available
+                informer_prediction = getattr(data, "informer_prediction", data.prediction_model)
+                gru_prediction = getattr(data, "gru_prediction", data.prediction_model)
+                model_prediction = getattr(data, "model_prediction", data.prediction_model)
+                
                 hourly_data[hour] = HourlyData(
-                    Model=data.prediction_model,
+                    informer=informer_prediction,
+                    gru=gru_prediction,
+                    model=model_prediction,
                     actual=data.actual_price
                 )
             

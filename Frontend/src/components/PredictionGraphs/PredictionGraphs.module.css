@@ -9,7 +9,7 @@
     z-index: 1000;
     width: 60%;
     max-width: 800px;
-    max-height: 500px;
+    max-height: 600px;
     overflow: auto;
 }
 
@@ -42,6 +42,80 @@
     display: flex;
     gap: 10px;
     margin-bottom: 15px;
+}
+
+.graphSelectionControls {
+    border: 1px solid #eee;
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 15px;
+    background-color: #f9f9f9;
+}
+
+.selectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+.smallButton {
+    padding: 3px 8px;
+    border: 1px solid #ddd;
+    background-color: #f8f8f8;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-left: 5px;
+    transition: all 0.2s ease;
+}
+
+.smallButton:hover {
+    background-color: #eaeaea;
+}
+
+.smallButton.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.checkboxContainer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.checkboxLabel {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.checkboxLabel input {
+    margin-right: 6px;
+}
+
+.modelInformer {
+    color: #FF8C00;
+    font-weight: 500;
+}
+
+.modelGru {
+    color: #8A2BE2;
+    font-weight: 500;
+}
+
+.modelCombined {
+    color: #0066CC;
+    font-weight: 500;
+}
+
+.modelActual {
+    color: #00CC66;
+    font-weight: 500;
 }
 
 .graphTypeButton {
@@ -79,5 +153,10 @@
     .graphContainer {
         width: 90%;
         left: 5%;
+    }
+    
+    .checkboxContainer {
+        flex-direction: column;
+        gap: 8px;
     }
 }

@@ -1,4 +1,4 @@
-import { PredictionDataResponse } from '../data/predictionTypes';
+import { PredictionDataResponse, HourlyPredictionData } from '../data/predictionTypes';
 import { PREDICTION_DATA_SERIES } from '../data/constants';
 
 /**
@@ -20,7 +20,7 @@ export const fetchPredictionData = async (
   
   // Generate mock hourly data
   const generateHourlyDataForCountry = (code: string) => {
-    const hourlyData: { [hour: string]: Record<string, number> } = {};
+    const hourlyData: { [hour: string]: HourlyPredictionData } = {};
     
     // Safely calculate country factor
     let countryFactor = 200; // Default value
@@ -49,8 +49,10 @@ export const fetchPredictionData = async (
       const hourlyPattern = hour < 7 || hour > 19 ? 0.7 : 1.3; // Lower at night, higher during day
       
       hourlyData[hour.toString()] = {
-        [PREDICTION_DATA_SERIES.PREDICTION_MODEL]: baseValue * hourlyPattern + (Math.random() * 10),
-        [PREDICTION_DATA_SERIES.ACTUAL_PRICE]: baseValue * hourlyPattern * (1 + (Math.random() * 0.2 - 0.1)) + dateFactor
+        informer: baseValue * hourlyPattern + Math.random() * 5,
+        gru: baseValue * hourlyPattern + Math.random() * 7,
+        model: baseValue * hourlyPattern + Math.random() * 10,
+        actual: baseValue * hourlyPattern * (1 + (Math.random() * 0.2 - 0.1)) + dateFactor
       };
     }
     
