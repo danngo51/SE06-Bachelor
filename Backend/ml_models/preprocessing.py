@@ -116,35 +116,3 @@ def load_input_sample(csv_path):
 
 
 
-def load_prediction_data(input_path, seq_len=168, label_len=24, pred_len=24):
-    """
-    Loads and preprocesses input CSV data for prediction.
-    
-    Returns x_enc, x_mark_enc, x_dec, x_mark_dec tensors.
-    """
-    df = pd.read_csv(input_path)
-
-    # Make sure columns are in correct order
-    df = df[FEATURES]
-
-    # Normalize features if you normalized during training
-    # (You should load the same scaler used during training, or retrain one)
-    # Example without normalization (simpler):
-    data = df.values
-
-    # Convert to tensor
-    data_tensor = torch.tensor(data, dtype=torch.float32)
-
-    # Build encoder input
-    x_enc = data_tensor.unsqueeze(0)  # [batch_size, seq_len, num_features]
-    
-    # For x_mark_enc, x_dec, x_mark_dec:
-    # If you don't use additional temporal encodings, you can just create dummy zeros
-    batch_size = 1
-    num_features = len(FEATURES)
-
-    x_mark_enc = torch.zeros((batch_size, seq_len, 4))  # 4 = (month, day, weekday, hour) usually if needed
-    x_dec = torch.zeros((batch_size, label_len+pred_len, num_features))
-    x_mark_dec = torch.zeros((batch_size, label_len+pred_len, 4))
-
-    return x_enc, x_mark_enc, x_dec, x_mark_dec

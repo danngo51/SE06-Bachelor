@@ -22,6 +22,7 @@ class PredictionService(IPredictionService):
     # Direct file paths for actual price data and minmax files
     ACTUAL_PRICE_FILE = DATA_PATH / "DK1_24.csv"  # Single file for actual prices
     MINMAX_FILE = NORMALIZE_OUTPUT_PATH / "minmax.csv"  # Single minmax file
+    NORMALIZED_INPUT_FILE = DATA_PATH / "DK1_24-normalized.csv"  # Single normalized input file
     
     def status(self) -> Dict:
         return {"status": "Predict running"}
@@ -48,8 +49,14 @@ class PredictionService(IPredictionService):
         
         # For each requested country, get predictions
         for country_code in request.country_codes:
-            # Use the hybrid model to get predictions
-            model_output: HybridModelOutput = hybrid_model.predict_with_hybrid_model(country_code, prediction_date)
+            # Use the hybrid model to get predictions with our normalized input file
+            input_file_path = str(self.NORMALIZED_INPUT_FILE)
+                
+            model_output: HybridModelOutput = hybrid_model.predict_with_hybrid_model(
+                country_code, 
+                prediction_date, 
+                input_file_path
+            )
             
             # Denormalize the predictions before processing
             denormalized_output = self._denormalize_predictions(model_output, country_code)
@@ -85,8 +92,14 @@ class PredictionService(IPredictionService):
         
         # For each requested country, get predictions
         for country_code in request.country_codes:
-            # Use the test_predict method from hybrid_model
-            model_output: HybridModelOutput = hybrid_model.test_predict(country_code, prediction_date)
+            # Use the test_predict method from hybrid_model with our normalized input file
+            input_file_path = str(self.NORMALIZED_INPUT_FILE)
+                
+            model_output: HybridModelOutput = hybrid_model.test_predict(
+                country_code, 
+                prediction_date,
+                input_file_path
+            )
             
             # Denormalize the predictions before processing
             denormalized_output = self._denormalize_predictions(model_output, country_code)
@@ -232,14 +245,14 @@ class PredictionService(IPredictionService):
             # Price column is typically column 8 (index 7) based on the CSV structure
             price_column = None
             for col in df.columns:
-                if 'price' in col.lower() or 'currency' in col.lower():
+                if 'Price[Currency/MWh]' in col.lower() or 'currency' in col.lower():
                     price_column = col
                     break
             
             if price_column is None:
                 # Use the 8th column (index 7) as a fallback which contains price data in the DK1_24.csv file
-                if len(df.columns) > 8:
-                    price_column = df.columns[8]
+                if len(df.columns) > 63:
+                    price_column = df.columns[63]
                 else:
                     print(f"[ERROR] Unable to identify price column in CSV file")
                     return {}
