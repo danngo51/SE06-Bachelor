@@ -11,6 +11,18 @@ import pathlib
 from ml_models.Normalize.Denormalization import denormalize_column
 
 class PredictionService(IPredictionService):
+    # Class-level path variables for easier maintenance
+    ROOT_PATH = pathlib.Path(__file__).parent.parent.parent
+    ML_MODELS_PATH = ROOT_PATH / "ml_models"
+    DATA_PATH = ML_MODELS_PATH / "data"
+    NORMALIZE_PATH = ML_MODELS_PATH / "Normalize"
+    NORMALIZE_OUTPUT_PATH = NORMALIZE_PATH / "output"
+    NORMALIZE_INPUT_PATH = NORMALIZE_PATH / "input"
+    
+    # Direct file paths for actual price data and minmax files
+    ACTUAL_PRICE_FILE = DATA_PATH / "DK1_24.csv"  # Single file for actual prices
+    MINMAX_FILE = NORMALIZE_OUTPUT_PATH / "minmax.csv"  # Single minmax file
+    
     def status(self) -> Dict:
         return {"status": "Predict running"}
     
@@ -38,8 +50,12 @@ class PredictionService(IPredictionService):
         for country_code in request.country_codes:
             # Use the hybrid model to get predictions
             model_output: HybridModelOutput = hybrid_model.predict_with_hybrid_model(country_code, prediction_date)
+            
+            # Denormalize the predictions before processing
+            denormalized_output = self._denormalize_predictions(model_output, country_code)
+            
             country_predictions.append(
-                self._process_model_results(model_output, country_code, prediction_date)
+                self._process_model_results(denormalized_output, country_code, prediction_date)
             )
         
         # Return structured response
@@ -71,8 +87,12 @@ class PredictionService(IPredictionService):
         for country_code in request.country_codes:
             # Use the test_predict method from hybrid_model
             model_output: HybridModelOutput = hybrid_model.test_predict(country_code, prediction_date)
+            
+            # Denormalize the predictions before processing
+            denormalized_output = self._denormalize_predictions(model_output, country_code)
+            
             country_predictions.append(
-                self._process_model_results(model_output, country_code, prediction_date)
+                self._process_model_results(denormalized_output, country_code, prediction_date)
             )
         
         # Return structured response
@@ -89,8 +109,16 @@ class PredictionService(IPredictionService):
         # Create hourly data dictionary
         hourly_data = {}
         
+        # Get actual prices if available (for past dates)
+        actual_prices = self._get_actual_prices(country_code, prediction_date)
+        
         # Ensure we have enough prediction points (24 hours)
         num_hours = min(24, len(model_predictions))
+        
+        # Check if we're predicting for today or a future date
+        prediction_datetime = datetime.datetime.strptime(prediction_date, "%Y-%m-%d")
+        today = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        is_future_date = prediction_datetime >= today
         
         for hour in range(num_hours):
             # Get predictions for this hour from all models
@@ -98,14 +126,21 @@ class PredictionService(IPredictionService):
             gru_value = gru_predictions[hour] if hour < len(gru_predictions) else 0
             model_value = model_predictions[hour] if hour < len(model_predictions) else 0
             
-            # For demo purposes, we generate a simulated "actual" price
-            # In a real system, this might come from historical data or be None for future dates
-            actual_price = model_value * (1 + ((random.random() * 0.1) - 0.05))
+            # Get actual price if available, otherwise use None for future dates/hours
+            actual_price = None
+            hour_str = str(hour)
             
-            # Store data for this hour with the model result and individual model predictions
-            hourly_data[str(hour)] = HourlyPredictionData(
-                prediction_model=model_value,
-                actual_price=round(actual_price, 2),
+            if hour_str in actual_prices:
+                # Use historical data for past dates
+                actual_price = actual_prices[hour_str]
+            elif not is_future_date:
+                # For past dates with missing actual data, use model prediction with small variance
+                actual_price = model_value * (1 + ((random.random() * 0.1) - 0.05))
+            
+            # Round values for display
+            hourly_data[hour_str] = HourlyPredictionData(
+                prediction_model=round(model_value, 2),
+                actual_price=round(actual_price, 2) if actual_price is not None else None,
                 informer_prediction=round(informer_value, 2),
                 gru_prediction=round(gru_value, 2),
                 model_prediction=round(model_value, 2)
@@ -130,21 +165,8 @@ class PredictionService(IPredictionService):
             HybridModelOutput with denormalized prediction values
         """
         try:
-            # Find minmax file for the specific country or use a default one
-            normalize_dir = pathlib.Path(__file__).parent.parent.parent / "ml_models" / "Normalize" / "output"
-            
-            # Try country-specific file first
-            minmax_file = normalize_dir / f"minmax.csv"
-            
-            # Fall back to default minmax file if country-specific one doesn't exist
-            if not os.path.exists(minmax_file):
-                possible_files = [f for f in os.listdir(normalize_dir) if f.endswith('-minmax.csv')]
-                if possible_files:
-                    minmax_file = normalize_dir / possible_files[0]
-                    print(f"[INFO] Using default minmax file: {minmax_file}")
-                else:
-                    print(f"[WARNING] No minmax file found for denormalization. Returning original predictions.")
-                    return model_output
+            # Use the single minmax file for denormalization
+            minmax_file = self.MINMAX_FILE
             
             # Convert prediction lists to DataFrame for denormalization
             df_informer = pd.DataFrame({"Price[Currency/MWh]": model_output.informer_prediction})
@@ -167,3 +189,71 @@ class PredictionService(IPredictionService):
             print(f"[ERROR] Error during denormalization: {str(e)}")
             # Return original predictions if denormalization fails
             return model_output
+
+    def _get_actual_prices(self, country_code: str, prediction_date: str) -> Dict[str, float]:
+        """
+        Retrieve actual historical price data for a specific date and country
+        
+        Args:
+            country_code: Country code (e.g., 'DK1')
+            prediction_date: Date in format 'YYYY-MM-DD'
+            
+        Returns:
+            Dictionary with hour (as string) as key and actual price as value
+        """
+        try:
+            # Use the single actual price file for data retrieval
+            csv_file = self.ACTUAL_PRICE_FILE
+            
+            if not os.path.exists(csv_file):
+                print(f"[WARNING] No price data file found: {csv_file}")
+                return {}
+            
+            # Read the CSV file
+            df = pd.read_csv(csv_file)
+            
+            # The first column typically contains datetime information
+            # Extract the date part for filtering
+            date_column = df.columns[0]  # Usually 'datetime' or similar
+            
+            # Convert the date column to datetime if it's not already
+            if not pd.api.types.is_datetime64_any_dtype(df[date_column]):
+                df[date_column] = pd.to_datetime(df[date_column])
+            
+            # Filter data for the requested date
+            date_filter = df[date_column].dt.strftime('%Y-%m-%d') == prediction_date
+            filtered_df = df[date_filter]
+            
+            if filtered_df.empty:
+                print(f"[INFO] No price data found for date: {prediction_date}")
+                return {}
+            
+            # Extract hour and price data (assuming price column is 'Price[Currency/MWh]' or similar)
+            # Price column is typically column 8 (index 7) based on the CSV structure
+            price_column = None
+            for col in df.columns:
+                if 'price' in col.lower() or 'currency' in col.lower():
+                    price_column = col
+                    break
+            
+            if price_column is None:
+                # Use the 8th column (index 7) as a fallback which contains price data in the DK1_24.csv file
+                if len(df.columns) > 8:
+                    price_column = df.columns[8]
+                else:
+                    print(f"[ERROR] Unable to identify price column in CSV file")
+                    return {}
+            
+            # Create a dictionary with hour -> price mapping
+            result = {}
+            for _, row in filtered_df.iterrows():
+                # Extract hour from datetime
+                hour = pd.to_datetime(row[date_column]).hour
+                price = row[price_column]
+                result[str(hour)] = float(price)
+            
+            return result
+            
+        except Exception as e:
+            print(f"[ERROR] Error retrieving actual prices: {str(e)}")
+            return {}

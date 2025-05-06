@@ -23,7 +23,7 @@ def predict_with_hybrid_model(country_code: str, prediction_date: str) -> Hybrid
     """
     try:
         # Determine the input file
-        input_file = f"ml_models/data/input/input_2024_normalized.csv"
+        input_file = f"ml_models/data/DK1_24-normalized.csv"
         
         # Set up device for model computation
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
