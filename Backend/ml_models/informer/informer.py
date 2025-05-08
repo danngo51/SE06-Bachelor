@@ -1,17 +1,6 @@
-import sys
-import os
-
-# Path to the informerModel directory
-informer_repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "informerModel"))
-
-# Add informerModel/ to the Python path so Informer's own relative imports work
-if informer_repo_root not in sys.path:
-    sys.path.insert(0, informer_repo_root)
-
-
 import torch
 import json
-from ml_models.informer.informerModel.models.model import Informer
+from informerModel.models.model import Informer
 
 
 class InformerWrapper:
