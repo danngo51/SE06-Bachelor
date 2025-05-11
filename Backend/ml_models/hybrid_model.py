@@ -1,6 +1,6 @@
 import random
 import math
-from models.prediction import HybridModelOutput
+from model.prediction import HybridModelOutput
 import os
 import torch
 import pandas as pd

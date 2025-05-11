@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from typing import List, Optional
 from core.di_container import get_prediction_service
 from interfaces.PredictionServiceInterface import IPredictionService
-from models.prediction import PredictionRequest, FrontendPredictionResponse
+from model.prediction import PredictionRequest, FrontendPredictionResponse
 
 predict = APIRouter()
 
