@@ -14,6 +14,7 @@ class GRUWrapper:
         self.gru = GRUModel(
             input_dim=input_dim,
             hidden_dim=hidden_dim,
+            output_dim=output_dim,
             bidirectional=bidirectional
         ).to(device)
 
@@ -23,21 +24,8 @@ class GRUWrapper:
         else:
             raise FileNotFoundError(f"❌ GRU weights not found at {gru_path}")
 
-        # Load Regressor
-        self.regressor = nn.Linear(
-            hidden_dim * (2 if bidirectional else 1),
-            output_dim
-        ).to(device)
-
-        if os.path.exists(regressor_path):
-            self.regressor.load_state_dict(torch.load(regressor_path, map_location=device))
-            print(f"✅ Loaded Regressor weights from {regressor_path}")
-        else:
-            raise FileNotFoundError(f"❌ Regressor weights not found at {regressor_path}")
-
         # Set eval mode
         self.gru.eval()
-        self.regressor.eval()
 
     def run(self, embedding_tensor: torch.Tensor):
         """
@@ -46,6 +34,5 @@ class GRUWrapper:
         """
         with torch.no_grad():
             embedding_tensor = embedding_tensor.to(self.device)
-            gru_out = self.gru(embedding_tensor)        # [batch, hidden_dim]
-            pred = self.regressor(gru_out)               # [batch, output_dim]
+            pred = self.gru(embedding_tensor)  # [batch, output_dim]
         return pred

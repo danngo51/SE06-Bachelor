@@ -1,6 +1,6 @@
 from interfaces.PredictionServiceInterface import IPredictionService
 from typing import Dict, List, Optional
-from models.prediction import PredictionRequest, PredictionResponse, CountryPredictionData, HourlyPredictionData, HybridModelOutput
+from model.prediction import PredictionRequest, PredictionResponse, CountryPredictionData, HourlyPredictionData, HybridModelOutput
 import datetime
 import random
 import math

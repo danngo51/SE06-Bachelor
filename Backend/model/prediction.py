@@ -64,20 +64,10 @@ class FrontendPredictionResponse(BaseModel):
 class HourlyPredictionData(BaseModel):
     """Hourly prediction data with different model results (internal use)"""
     prediction_model: float = Field(..., description="Prediction from primary model")
-    actual_price: float = Field(..., description="Actual price (if available)")
-    
-    # Support for additional models
-    def __init__(self, **data):
-        # Extract known fields
-        prediction = data.pop("prediction_model", 0.0)
-        actual = data.pop("actual_price", 0.0)
-        
-        # Initialize with known fields
-        super().__init__(prediction_model=prediction, actual_price=actual)
-        
-        # Add any additional fields dynamically
-        for key, value in data.items():
-            setattr(self, key, value)
+    actual_price: Optional[float] = Field(None, description="Actual price (if available)")
+    informer_prediction: float = Field(..., description="Prediction from the Informer model")
+    gru_prediction: float = Field(..., description="Prediction from the GRU model")
+    model_prediction: float = Field(..., description="Combined model prediction")
 
 class CountryPredictionData(BaseModel):
     """Prediction data for a single country (internal use)"""

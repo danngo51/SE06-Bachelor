@@ -1,6 +1,17 @@
+import sys
+import os
+
+# Dynamically find the absolute path to the informerModel repo
+current_file_path = os.path.abspath(__file__)
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file_path)))  # Up from informer.py to Backend/
+informer_model_path = os.path.join(project_root, 'ml_models', 'informer', 'informerModel')
+
+if informer_model_path not in sys.path:
+    sys.path.insert(0, informer_model_path)
+
 import torch
 import json
-from informerModel.models.model import Informer
+from models.model import Informer
 
 
 class InformerWrapper:

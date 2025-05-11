@@ -1,6 +1,6 @@
 import random
 import math
-from models.prediction import HybridModelOutput
+from model.prediction import HybridModelOutput
 import os
 import torch
 import pandas as pd
@@ -37,7 +37,7 @@ def predict_with_hybrid_model(country_code: str, prediction_date: str, input_fil
 
         gru = GRUWrapper(
             gru_path="ml_models/gru/results/gru_trained.pt",
-            regressor_path="ml_models/gru/results/gru_regressor.pt",
+            regressor_path=None,  # Not used anymore, but kept for interface compatibility
             input_dim=512,
             hidden_dim=128,
             output_dim=24,
