@@ -3,14 +3,14 @@ import pandas as pd
 
 # Input files
 base_dir = os.path.dirname(__file__)
-all_years_path = os.path.join(base_dir, "results", "weather", "combined", "weather_2024.csv")
-dec_2018_path = os.path.join(base_dir, "results", "weather", "weather_2023_12.csv")
-output_path = os.path.join(base_dir, "results", "weather", "combined", "weather_2024_with_lags.csv")
+all_years_path = os.path.join(base_dir, "results", "weather", "combined", "weather_2025.csv")
+dec_path = os.path.join(base_dir, "results", "weather", "weather_2024_12.csv")
+output_path = os.path.join(base_dir, "results", "weather", "combined", "weather_2025_with_lag.csv")
 
 # Load data
-print("📥 Loading all years + Dec 2018 for lag generation...")
+print("📥 Loading all years for lag generation...")
 df_main = pd.read_csv(all_years_path)
-df_dec = pd.read_csv(dec_2018_path)
+df_dec = pd.read_csv(dec_path)
 
 # Combine Dec 2018 and main data temporarily for lag calculations
 df = pd.concat([df_dec, df_main], ignore_index=True)
@@ -31,13 +31,13 @@ weather_vars = [
 
 # Generate lag features
 print("🛠️ Generating lag features...")
-for lag in [1, 24, 168]:
+for lag in [1, 24]:
     for var in weather_vars:
         lag_col = f"{var}_lag{lag}"
         df[lag_col] = df.groupby("zone")[var].shift(lag)
 
-# Drop Dec 2018 rows (anything before 2019)
-df = df[df["date"] >= "2024-01-01"].copy()
+# Drop Dec 2017 rows (anything before 2018)
+df = df[df["date"] >= "2025-01-01"].copy()
 
 # Drop temporary column and save
 df = df.drop(columns=["datetime"])

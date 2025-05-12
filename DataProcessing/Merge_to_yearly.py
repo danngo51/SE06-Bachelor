@@ -7,13 +7,13 @@ output_dir = os.path.join(monthly_dir, "combined")
 os.makedirs(output_dir, exist_ok=True)
 
 # Years to combine
-years = range(2024, 2025)
+years = range(2025, 2026)
 
 for year in years:
     print(f"\n🔄 Combining and cleaning year {year}...")
     yearly_dfs = []
 
-    for month in range(1, 13):
+    for month in range(1, 5):
         filename = f"weather_{year}_{month:02d}.csv"
         filepath = os.path.join(monthly_dir, filename)
 

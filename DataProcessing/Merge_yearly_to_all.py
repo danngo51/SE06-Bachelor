@@ -6,7 +6,7 @@ yearly_dir = os.path.join(os.path.dirname(__file__), "results", "weather", "comb
 output_path = os.path.join(yearly_dir, "weather_all_years.csv")
 
 # Years to include
-years = range(2019, 2024)
+years = range(2018, 2025)
 all_years = []
 
 print("\n🔄 Combining all years into one file...")
