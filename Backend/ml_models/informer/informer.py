@@ -37,7 +37,7 @@ class InformerWrapper:
         self.model = Informer(**config).to(device)
         self.model.load_state_dict(torch.load(weight_path, map_location=device))
         self.model.eval()
-
+        
     def run(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         with torch.no_grad():
             enc_out, pred = self.model(
@@ -48,3 +48,67 @@ class InformerWrapper:
                 return_enc_and_pred=True
             )
         return enc_out, pred
+        
+    def encode(self, x_enc, x_mark_enc):
+        """
+        Get only the encoder output (embeddings) from the Informer model.
+        Useful for training the GRU model.
+        
+        Args:
+            x_enc: Encoder input tensor [batch_size, seq_len, feature_dim]
+            x_mark_enc: Encoder time feature tensor [batch_size, seq_len, time_feature_dim]
+            
+        Returns:
+            Encoder output tensor [batch_size, seq_len, d_model]
+        """
+        with torch.no_grad():
+            # Move inputs to device if they're not already there
+            if x_enc.device != self.device:
+                x_enc = x_enc.to(self.device)
+            if x_mark_enc.device != self.device:
+                x_mark_enc = x_mark_enc.to(self.device)
+                
+            # Create dummy decoder inputs just to run the forward pass
+            batch_size, seq_len = x_enc.shape[0], x_enc.shape[1]
+            pred_len = self.config.get("out_len", 24)
+            label_len = self.config.get("label_len", 24)
+            
+            x_dec = torch.zeros((batch_size, label_len + pred_len, x_enc.shape[2]), device=self.device)
+            x_mark_dec = torch.zeros((batch_size, label_len + pred_len, x_mark_enc.shape[2]), device=self.device)
+            
+            # Run through model and return only encoder output
+            enc_out = self.model.enc_embedding(x_enc, x_mark_enc)
+            enc_out, _ = self.model.encoder(enc_out)
+            
+            return enc_out
+        """
+        Get only the encoder output (embeddings) from the Informer model.
+        Useful for training the GRU model.
+        
+        Args:
+            x_enc: Encoder input tensor [batch_size, seq_len, feature_dim]
+            x_mark_enc: Encoder time feature tensor [batch_size, seq_len, time_feature_dim]
+            
+        Returns:
+            Encoder output tensor [batch_size, seq_len, d_model]
+        """
+        with torch.no_grad():
+            # Move inputs to device if they're not already there
+            if x_enc.device != self.device:
+                x_enc = x_enc.to(self.device)
+            if x_mark_enc.device != self.device:
+                x_mark_enc = x_mark_enc.to(self.device)
+                
+            # Create dummy decoder inputs just to run the forward pass
+            batch_size, seq_len = x_enc.shape[0], x_enc.shape[1]
+            pred_len = self.config.get("out_len", 24)
+            label_len = self.config.get("label_len", 24)
+            
+            x_dec = torch.zeros((batch_size, label_len + pred_len, x_enc.shape[2]), device=self.device)
+            x_mark_dec = torch.zeros((batch_size, label_len + pred_len, x_mark_enc.shape[2]), device=self.device)
+            
+            # Run through model and return only encoder output
+            enc_out = self.model.enc_embedding(x_enc, x_mark_enc)
+            enc_out, _ = self.model.encoder(enc_out)
+            
+            return enc_out

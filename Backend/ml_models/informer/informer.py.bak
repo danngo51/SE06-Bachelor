@@ -1,0 +1,104 @@
+import sys
+import os
+
+# Dynamically find the absolute path to the informerModel repo
+current_file_path = os.path.abspath(__file__)
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file_path)))  # Up from informer.py to Backend/
+informer_model_path = os.path.join(project_root, 'ml_models', 'informer', 'informerModel')
+
+if informer_model_path not in sys.path:
+    sys.path.insert(0, informer_model_path)
+
+import torch
+import json
+from models.model import Informer
+
+
+class InformerWrapper:
+    def __init__(self, config_path, weight_path, device="cpu"):
+        with open(config_path) as f:
+            full_config = json.load(f)
+
+        # Rename pred_len → out_len for compatibility with Informer's constructor
+        if "pred_len" in full_config:
+            full_config["out_len"] = full_config.pop("pred_len")
+
+        allowed_keys = {
+            "enc_in", "dec_in", "c_out", "seq_len", "label_len", "out_len",
+            "factor", "d_model", "n_heads", "e_layers", "d_layers", "d_ff",
+            "dropout", "attn", "embed", "freq", "activation",
+            "output_attention", "distil", "mix"
+        }
+
+        config = {k: v for k, v in full_config.items() if k in allowed_keys}
+        self.config = config
+        self.device = device        self.model = Informer(**config).to(device)
+        self.model.load_state_dict(torch.load(weight_path, map_location=device))
+        self.model.eval()
+        
+    def run(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
+        with torch.no_grad():
+            enc_out, pred = self.model(
+                x_enc.to(self.device),
+                x_mark_enc.to(self.device),
+                x_dec.to(self.device),
+                x_mark_dec.to(self.device),
+                return_enc_and_pred=True
+            )
+        return enc_out, pred
+        
+    def encode(self, x_enc, x_mark_enc):
+        """
+        Get only the encoder output (embeddings) from the Informer model.
+        Useful for training the GRU model.
+        
+        Args:
+            x_enc: Encoder input tensor [batch_size, seq_len, feature_dim]
+            x_mark_enc: Encoder time feature tensor [batch_size, seq_len, time_feature_dim]
+            
+        Returns:
+            Encoder output tensor [batch_size, seq_len, d_model]
+        """
+        with torch.no_grad():
+            # Move inputs to device if they're not already there
+            x_enc_device = x_enc.to(self.device)
+            x_mark_enc_device = x_mark_enc.to(self.device)
+                
+            # Run through the encoder part of the model
+            enc_out = self.model.enc_embedding(x_enc_device, x_mark_enc_device)
+            enc_out, _ = self.model.encoder(enc_out)
+            
+            return enc_out
+        
+    def encode(self, x_enc, x_mark_enc):
+        """
+        Get only the encoder output (embeddings) from the Informer model.
+        Useful for training the GRU model.
+        
+        Args:
+            x_enc: Encoder input tensor [batch_size, seq_len, feature_dim]
+            x_mark_enc: Encoder time feature tensor [batch_size, seq_len, time_feature_dim]
+            
+        Returns:
+            Encoder output tensor [batch_size, seq_len, d_model]
+        """
+        with torch.no_grad():
+            # Move inputs to device if they're not already there
+            if x_enc.device != self.device:
+                x_enc = x_enc.to(self.device)
+            if x_mark_enc.device != self.device:
+                x_mark_enc = x_mark_enc.to(self.device)
+                
+            # Create dummy decoder inputs just to run the forward pass
+            batch_size, seq_len = x_enc.shape[0], x_enc.shape[1]
+            pred_len = self.config.get("out_len", 24)
+            label_len = self.config.get("label_len", 24)
+            
+            x_dec = torch.zeros((batch_size, label_len + pred_len, x_enc.shape[2]), device=self.device)
+            x_mark_dec = torch.zeros((batch_size, label_len + pred_len, x_mark_enc.shape[2]), device=self.device)
+            
+            # Run through model and return only encoder output
+            enc_out = self.model.enc_embedding(x_enc, x_mark_enc)
+            enc_out, _ = self.model.encoder(enc_out)
+            
+            return enc_out

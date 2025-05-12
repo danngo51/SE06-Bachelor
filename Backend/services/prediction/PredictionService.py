@@ -18,11 +18,10 @@ class PredictionService(IPredictionService):
     NORMALIZE_PATH = ML_MODELS_PATH / "Normalize"
     NORMALIZE_OUTPUT_PATH = NORMALIZE_PATH / "output"
     NORMALIZE_INPUT_PATH = NORMALIZE_PATH / "input"
-    
-    # Direct file paths for actual price data and minmax files
-    ACTUAL_PRICE_FILE = DATA_PATH / "DK1_24.csv"  # Single file for actual prices
+      # Direct file paths for actual price data and minmax files
+    ACTUAL_PRICE_FILE = DATA_PATH / "DK1" / "prediction_data.csv"  # Single file for actual prices
     MINMAX_FILE = NORMALIZE_OUTPUT_PATH / "minmax.csv"  # Single minmax file
-    NORMALIZED_INPUT_FILE = DATA_PATH / "DK1_24-normalized.csv"  # Single normalized input file
+    NORMALIZED_INPUT_FILE = DATA_PATH / "DK1" / "prediction_data_normalized.csv"  # Single normalized input file
     
     def status(self) -> Dict:
         return {"status": "Predict running"}

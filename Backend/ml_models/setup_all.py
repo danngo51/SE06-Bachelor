@@ -38,12 +38,12 @@ def run_setup_script(script_name, description):
 def main():
     """Main function to run all setup scripts"""
     print("🚀 Setting up new zone-specific structure with separate training and prediction datasets")
-    
-    # Run each setup script in sequence
+      # Run each setup script in sequence
     scripts = [
         ("setup_zones.py", "Setting up zone-specific directory structure"),
         ("update_configs.py", "Updating zone configs to use training data"),
-        ("convert_data_to_zones.py", "Converting and splitting data into training/prediction sets")
+        ("convert_data_to_zones.py", "Converting and splitting data into training/prediction sets"),
+        ("simplify_configs.py", "Simplifying config files to keep only essential parameters")
     ]
     
     for script_name, description in scripts:

@@ -22,17 +22,16 @@ def predict_with_hybrid_model(country_code: str, prediction_date: str, input_fil
     """
     try:        # Determine the base directory for ml_models
         current_file_path = os.path.abspath(__file__)
-        ml_models_dir = os.path.dirname(current_file_path)
-          # Determine the zone-specific input file for prediction (2024 data)
+        ml_models_dir = os.path.dirname(current_file_path)          # Determine the zone-specific input file for prediction (2024 data)
         if input_file_path:
             input_file = input_file_path
         else:
             # Use zone-specific prediction data files (2024 data)
-            input_file = os.path.join(ml_models_dir, "data", f"{country_code}_24.csv")
+            input_file = os.path.join(ml_models_dir, "data", country_code, "prediction_data.csv")
             if not os.path.exists(input_file):
                 print(f"⚠️ Zone-specific prediction file not found: {input_file}")
                 # Fall back to a default if necessary
-                input_file = os.path.join(ml_models_dir, "data", "DK1_24.csv")
+                input_file = os.path.join(ml_models_dir, "data", "DK1", "prediction_data.csv")
                 print(f"⚠️ Using default prediction file: {input_file}")
         
         # Set up device for model computation

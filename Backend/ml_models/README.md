@@ -71,6 +71,32 @@ The hybrid_model.py file now automatically:
 
 Each zone can have different weights for combining the Informer and GRU model outputs. These weights are defined in `hybrid_model.py`.
 
+## Simplified Configuration Files
+
+Config files have been simplified to contain only essential parameters:
+
+```json
+{
+  "root_path": "./data/",                // Path to data directory
+  "data_path": "DK1_19-23.csv",         // Zone-specific data file
+  "target": "Price[Currency/MWh]",       // Target column name
+  "cols": [                              // Feature columns used by the model
+    "hour", "day", "weekday", "month",
+    // ... other features
+    "Price[Currency/MWh]"
+  ],
+  "enc_in": 63,                          // Encoder input dimension
+  "dec_in": 63,                          // Decoder input dimension
+  "c_out": 1,                            // Output dimension
+  "seq_len": 168,                        // Input sequence length
+  "label_len": 24,                       // Label length
+  "pred_len": 24,                        // Prediction length
+  "d_model": 512                         // Model dimension
+}
+```
+
+All other training parameters are handled by the training scripts and don't need to be stored in the config files.
+
 ## Testing
 
 Use the `test_hybrid_model.py` script to test predictions for specific zones:
