@@ -136,7 +136,8 @@ def train_gru_for_zone(zone_code, epochs=10, batch_size=32):
         from torch.utils.data import DataLoader, TensorDataset
         import pandas as pd
         import numpy as np
-        import json        import sys
+        import json        
+        import sys
         # Add paths for imports
         sys.path.append(str(base_path.parent))  # Add Backend directory
         sys.path.append(str(base_path / "gru" / "gruModel"))  # Add GRU model directory

@@ -8,22 +8,49 @@ import ml_models.hybrid_model as hybrid_model
 import pandas as pd
 import os
 import pathlib
-from ml_models.Normalize.Denormalization import denormalize_column
 
 class PredictionService(IPredictionService):
-    # Class-level path variables for easier maintenance
-    ROOT_PATH = pathlib.Path(__file__).parent.parent.parent
-    ML_MODELS_PATH = ROOT_PATH / "ml_models"
-    DATA_PATH = ML_MODELS_PATH / "data"
-    NORMALIZE_PATH = ML_MODELS_PATH / "Normalize"
-    NORMALIZE_OUTPUT_PATH = NORMALIZE_PATH / "output"
-    NORMALIZE_INPUT_PATH = NORMALIZE_PATH / "input"
-      # Direct file paths for actual price data and minmax files
-    ACTUAL_PRICE_FILE = DATA_PATH / "DK1" / "prediction_data.csv"  # Single file for actual prices
-    MINMAX_FILE = NORMALIZE_OUTPUT_PATH / "minmax.csv"  # Single minmax file
-    NORMALIZED_INPUT_FILE = DATA_PATH / "DK1" / "prediction_data_normalized.csv"  # Single normalized input file
+    """
+    Service for electricity price predictions using the hybrid model
+    """
+    # Define paths once for reuse
+    ROOT_PATH = pathlib.Path(__file__).parent.parent.parent.parent
+    ML_MODELS_DIR = ROOT_PATH / "ml_models"
+    DATA_DIR = ML_MODELS_DIR / "data"
+    INFORMER_DIR = ML_MODELS_DIR / "informer"
+    GRU_DIR = ML_MODELS_DIR / "gru"
+    
+    @staticmethod
+    def get_zone_paths(country_code: str):
+        """
+        Get all path configurations for a specific zone
+        
+        Args:
+            country_code: Zone code (e.g., 'DK1')
+        
+        Returns:
+            Dictionary of important paths for the zone
+        """
+        paths = {
+            # Data paths
+            "prediction_data": PredictionService.DATA_DIR / country_code / "prediction_data.csv",
+            "training_data": PredictionService.DATA_DIR / country_code / "training_data.csv",
+            
+            # Informer paths
+            "config": PredictionService.INFORMER_DIR / country_code / "config.json",
+            "default_config": PredictionService.INFORMER_DIR / "config.json",
+            "informer_weights": PredictionService.INFORMER_DIR / country_code / "results" / "checkpoint.pth",
+            "default_informer_weights": PredictionService.INFORMER_DIR / "results" / "checkpoint.pth",
+            
+            # GRU paths
+            "gru_weights": PredictionService.GRU_DIR / country_code / "results" / "gru_trained.pt",
+            "default_gru_weights": PredictionService.GRU_DIR / "results" / "gru_trained.pt",
+        }
+        
+        return paths
     
     def status(self) -> Dict:
+        """Return service status"""
         return {"status": "Predict running"}
     
     def predict(self, request: PredictionRequest) -> PredictionResponse:
@@ -44,37 +71,76 @@ class PredictionService(IPredictionService):
             prediction_date = request.date
         
         # Create a list to hold data for each country
-        country_predictions = []
-        
-        # For each requested country, get predictions
+        country_predictions = []        # For each requested country, get predictions
         for country_code in request.country_codes:
-            # Use the hybrid model to get predictions with our normalized input file
-            input_file_path = str(self.NORMALIZED_INPUT_FILE)
+            try:
+                # Get paths for this zone
+                paths = self.get_zone_paths(country_code)
                 
-            model_output: HybridModelOutput = hybrid_model.predict_with_hybrid_model(
-                country_code, 
-                prediction_date, 
-                input_file_path
-            )
-            
-            # Denormalize the predictions before processing
-            denormalized_output = self._denormalize_predictions(model_output, country_code)
-            
-            country_predictions.append(
-                self._process_model_results(denormalized_output, country_code, prediction_date)
-            )
+                # Get input file path and model paths
+                input_file = str(paths["prediction_data"])
+                
+                # Check if the input file exists
+                if not os.path.exists(input_file):
+                    print(f"⚠️ Input file not found for {country_code}: {input_file}")
+                    print(f"Using test predictions for {country_code}")
+                    model_output = hybrid_model.test_predict(country_code, prediction_date)
+                    country_predictions.append(
+                        self._process_model_results(model_output, country_code, prediction_date)
+                    )
+                    continue
+                
+                # Get model paths with fallbacks
+                config_path = str(paths["config"]) if os.path.exists(paths["config"]) else str(paths["default_config"])
+                weight_path = str(paths["informer_weights"]) if os.path.exists(paths["informer_weights"]) else str(paths["default_informer_weights"])
+                gru_path = str(paths["gru_weights"]) if os.path.exists(paths["gru_weights"]) else str(paths["default_gru_weights"])
+                
+                # Check if any required model files are missing
+                missing_files = []
+                if not os.path.exists(config_path):
+                    missing_files.append(f"config file: {config_path}")
+                if not os.path.exists(weight_path):
+                    missing_files.append(f"Informer weights: {weight_path}")
+                if not os.path.exists(gru_path):
+                    missing_files.append(f"GRU weights: {gru_path}")
+                
+                if missing_files:
+                    print(f"⚠️ Missing model files for {country_code}: {', '.join(missing_files)}")
+                    print(f"Using test predictions for {country_code}")
+                    model_output = hybrid_model.test_predict(country_code, prediction_date)
+                else:
+                    # Try to use the real model
+                    print(f"🔮 Generating predictions for {country_code} with hybrid model")
+                    model_output = hybrid_model.predict_with_hybrid_model(
+                        country_code, 
+                        prediction_date,
+                        input_file_path=input_file,
+                        config_path=config_path,
+                        weight_path=weight_path,
+                        gru_path=gru_path
+                    )
+                
+                country_predictions.append(
+                    self._process_model_results(model_output, country_code, prediction_date)
+                )
+                
+            except Exception as e:
+                print(f"❌ Error predicting for {country_code}: {e}")
+                # Use test predictions as a fallback
+                model_output = hybrid_model.test_predict(country_code, prediction_date)
+                country_predictions.append(
+                    self._process_model_results(model_output, country_code, prediction_date)
+                )
         
         # Return structured response
         return PredictionResponse(predictions=country_predictions)
     
-
     def predict_test(self, request: PredictionRequest) -> PredictionResponse:
         """
         Generate predictions using the test method in hybrid model
         
         Args:
             request: PredictionRequest with country_codes and date
-            test_mode: Parameter retained for interface compatibility but not used
             
         Returns:
             PredictionResponse with prediction data for all requested countries
@@ -91,25 +157,18 @@ class PredictionService(IPredictionService):
         
         # For each requested country, get predictions
         for country_code in request.country_codes:
-            # Use the test_predict method from hybrid_model with our normalized input file
-            input_file_path = str(self.NORMALIZED_INPUT_FILE)
-                
+            # Use the test_predict method from hybrid_model
             model_output: HybridModelOutput = hybrid_model.test_predict(
                 country_code, 
-                prediction_date,
-                input_file_path
+                prediction_date
             )
             
-            # Denormalize the predictions before processing
-            denormalized_output = self._denormalize_predictions(model_output, country_code)
-            
             country_predictions.append(
-                self._process_model_results(denormalized_output, country_code, prediction_date)
+                self._process_model_results(model_output, country_code, prediction_date)
             )
         
         # Return structured response
         return PredictionResponse(predictions=country_predictions)
-    
 
     def _process_model_results(self, model_output: HybridModelOutput, country_code: str, prediction_date: str) -> CountryPredictionData:
         """Process model results into the expected format for a country"""
@@ -164,44 +223,6 @@ class PredictionService(IPredictionService):
             country_code=country_code,
             prediction_date=prediction_date
         )
-    
-    def _denormalize_predictions(self, model_output: HybridModelOutput, country_code: str) -> HybridModelOutput:
-        """
-        Denormalizes prediction data in a HybridModelOutput object
-        
-        Args:
-            model_output: HybridModelOutput with normalized prediction values
-            country_code: Country code to help determine the correct minmax file
-            
-        Returns:
-            HybridModelOutput with denormalized prediction values
-        """
-        try:
-            # Use the single minmax file for denormalization
-            minmax_file = self.MINMAX_FILE
-            
-            # Convert prediction lists to DataFrame for denormalization
-            df_informer = pd.DataFrame({"Price[Currency/MWh]": model_output.informer_prediction})
-            df_gru = pd.DataFrame({"Price[Currency/MWh]": model_output.gru_prediction})
-            df_model = pd.DataFrame({"Price[Currency/MWh]": model_output.model_prediction})
-            
-            # Denormalize each model's predictions
-            denorm_informer = denormalize_column(df_informer, minmax_file, "Price[Currency/MWh]")
-            denorm_gru = denormalize_column(df_gru, minmax_file, "Price[Currency/MWh]")
-            denorm_model = denormalize_column(df_model, minmax_file, "Price[Currency/MWh]")
-            
-            # Create a new HybridModelOutput with denormalized predictions
-            return HybridModelOutput(
-                informer_prediction=denorm_informer["Price[Currency/MWh]"].tolist(),
-                gru_prediction=denorm_gru["Price[Currency/MWh]"].tolist(),
-                model_prediction=denorm_model["Price[Currency/MWh]"].tolist()
-            )
-            
-        except Exception as e:
-            print(f"[ERROR] Error during denormalization: {str(e)}")
-            # Return original predictions if denormalization fails
-            return model_output
-
     def _get_actual_prices(self, country_code: str, prediction_date: str) -> Dict[str, float]:
         """
         Retrieve actual historical price data for a specific date and country
@@ -214,8 +235,9 @@ class PredictionService(IPredictionService):
             Dictionary with hour (as string) as key and actual price as value
         """
         try:
-            # Use the single actual price file for data retrieval
-            csv_file = self.ACTUAL_PRICE_FILE
+            # Use our local path helper
+            paths = self.get_zone_paths(country_code)
+            csv_file = paths["prediction_data"]
             
             if not os.path.exists(csv_file):
                 print(f"[WARNING] No price data file found: {csv_file}")
@@ -240,18 +262,22 @@ class PredictionService(IPredictionService):
                 print(f"[INFO] No price data found for date: {prediction_date}")
                 return {}
             
-            # Extract hour and price data (assuming price column is 'Price[Currency/MWh]' or similar)
-            # Price column is typically column 8 (index 7) based on the CSV structure
+            # Extract hour and price data
             price_column = None
-            for col in df.columns:
-                if 'Price[Currency/MWh]' in col.lower() or 'currency' in col.lower():
-                    price_column = col
+            price_column_candidates = ["Price[Currency/MWh]", "Electricity_price_MWh", "Price_EUR_MWh", "price"]
+            
+            for candidate in price_column_candidates:
+                for col in df.columns:
+                    if candidate.lower() in col.lower():
+                        price_column = col
+                        break
+                if price_column:
                     break
             
             if price_column is None:
-                # Use the 8th column (index 7) as a fallback which contains price data in the DK1_24.csv file
-                if len(df.columns) > 63:
-                    price_column = df.columns[63]
+                # Use a column index as a fallback if needed
+                if len(df.columns) > 1:
+                    price_column = df.columns[1]  # Try the second column as a fallback
                 else:
                     print(f"[ERROR] Unable to identify price column in CSV file")
                     return {}
