@@ -1,4 +1,3 @@
-# filepath: d:\Skole Projekter\6. sem\SE06-Bachelor\Backend\services\prediction\PredictionService.py
 from interfaces.PredictionServiceInterface import IPredictionService
 from typing import Dict, List, Optional
 from model.prediction import PredictionRequest, PredictionResponse, CountryPredictionData, HourlyPredictionData, HybridModelOutput
@@ -64,7 +63,6 @@ class ZonePaths:
             
         return missing_files
 
-
 class PredictionService(IPredictionService):
     """
     Service for electricity price predictions using the hybrid model
@@ -77,10 +75,10 @@ class PredictionService(IPredictionService):
     GRU_DIR = ML_MODELS_DIR / "gru"
     
     # Dictionary to store zone paths (cached for reuse)
-    _zone_paths_cache: Dict[str, ZonePaths] = {}
+    _zone_paths_cache = {}
     
     @staticmethod
-    def get_zone_paths(country_code: str) -> ZonePaths:
+    def get_zone_paths(country_code: str):
         """
         Get all path configurations for a specific zone
         
@@ -88,28 +86,28 @@ class PredictionService(IPredictionService):
             country_code: Zone code (e.g., 'DK1')
         
         Returns:
-            ZonePaths object with all path configurations for the zone
+            Dictionary of important paths for the zone
         """
         # Check if we have already computed paths for this zone
         if country_code in PredictionService._zone_paths_cache:
             return PredictionService._zone_paths_cache[country_code]
         
-        # Create new ZonePaths object for this zone
-        paths = ZonePaths(
+        # Create new paths dictionary for this zone
+        paths = {
             # Data paths
-            prediction_data=PredictionService.DATA_DIR / country_code / "prediction_data.csv",
-            training_data=PredictionService.DATA_DIR / country_code / "training_data.csv",
+            "prediction_data": PredictionService.DATA_DIR / country_code / "prediction_data.csv",
+            "training_data": PredictionService.DATA_DIR / country_code / "training_data.csv",
             
             # Informer paths
-            config=PredictionService.INFORMER_DIR / country_code / "config.json",
-            default_config=PredictionService.INFORMER_DIR / "config.json",
-            informer_weights=PredictionService.INFORMER_DIR / country_code / "results" / "checkpoint.pth",
-            default_informer_weights=PredictionService.INFORMER_DIR / "results" / "checkpoint.pth",
+            "config": PredictionService.INFORMER_DIR / country_code / "config.json",
+            "default_config": PredictionService.INFORMER_DIR / "config.json",
+            "informer_weights": PredictionService.INFORMER_DIR / country_code / "results" / "checkpoint.pth",
+            "default_informer_weights": PredictionService.INFORMER_DIR / "results" / "checkpoint.pth",
             
             # GRU paths
-            gru_weights=PredictionService.GRU_DIR / country_code / "results" / "gru_trained.pt",
-            default_gru_weights=PredictionService.GRU_DIR / "results" / "gru_trained.pt",
-        )
+            "gru_weights": PredictionService.GRU_DIR / country_code / "results" / "gru_trained.pt",
+            "default_gru_weights": PredictionService.GRU_DIR / "results" / "gru_trained.pt",
+        }
         
         # Cache the paths for future use
         PredictionService._zone_paths_cache[country_code] = paths
@@ -119,8 +117,7 @@ class PredictionService(IPredictionService):
     def status(self) -> Dict:
         """Return service status"""
         return {"status": "Predict running"}
-    
-    def predict(self, request: PredictionRequest) -> PredictionResponse:
+      def predict(self, request: PredictionRequest) -> PredictionResponse:
         """
         Generate predictions using the hybrid model
         
@@ -144,10 +141,10 @@ class PredictionService(IPredictionService):
         for country_code in request.country_codes:
             try:
                 # Get paths for this zone
-                zone_paths = self.get_zone_paths(country_code)
+                paths = self.get_zone_paths(country_code)
                 
-                # Get input file path
-                input_file = zone_paths.prediction_data_str
+                # Get input file path and model paths
+                input_file = str(paths["prediction_data"])
                 
                 # Check if the input file exists
                 if not os.path.exists(input_file):
@@ -157,8 +154,19 @@ class PredictionService(IPredictionService):
                     country_predictions_dict[country_code] = self._process_model_results(model_output, country_code, prediction_date)
                     continue
                 
+                # Get model paths with fallbacks
+                config_path = str(paths["config"]) if os.path.exists(paths["config"]) else str(paths["default_config"])
+                weight_path = str(paths["informer_weights"]) if os.path.exists(paths["informer_weights"]) else str(paths["default_informer_weights"])
+                gru_path = str(paths["gru_weights"]) if os.path.exists(paths["gru_weights"]) else str(paths["default_gru_weights"])
+                
                 # Check if any required model files are missing
-                missing_files = zone_paths.check_missing_files()
+                missing_files = []
+                if not os.path.exists(config_path):
+                    missing_files.append(f"config file: {config_path}")
+                if not os.path.exists(weight_path):
+                    missing_files.append(f"Informer weights: {weight_path}")
+                if not os.path.exists(gru_path):
+                    missing_files.append(f"GRU weights: {gru_path}")
                 
                 if missing_files:
                     print(f"⚠️ Missing model files for {country_code}: {', '.join(missing_files)}")
@@ -171,30 +179,25 @@ class PredictionService(IPredictionService):
                         country_code, 
                         prediction_date,
                         input_file_path=input_file,
-                        config_path=zone_paths.config_path,
-                        weight_path=zone_paths.weight_path,
-                        gru_path=zone_paths.gru_path
+                        config_path=config_path,
+                        weight_path=weight_path,
+                        gru_path=gru_path
                     )
                 
-                country_predictions_dict[country_code] = self._process_model_results(
-                    model_output, country_code, prediction_date
-                )
+                country_predictions_dict[country_code] = self._process_model_results(model_output, country_code, prediction_date)
                 
             except Exception as e:
                 print(f"❌ Error predicting for {country_code}: {e}")
                 # Use test predictions as a fallback
                 model_output = hybrid_model.test_predict(country_code, prediction_date)
-                country_predictions_dict[country_code] = self._process_model_results(
-                    model_output, country_code, prediction_date
-                )
+                country_predictions_dict[country_code] = self._process_model_results(model_output, country_code, prediction_date)
         
         # Convert dictionary to list for response
         country_predictions = list(country_predictions_dict.values())
         
         # Return structured response
         return PredictionResponse(predictions=country_predictions)
-    
-    def predict_test(self, request: PredictionRequest) -> PredictionResponse:
+      def predict_test(self, request: PredictionRequest) -> PredictionResponse:
         """
         Generate predictions using the test method in hybrid model
         
@@ -285,7 +288,6 @@ class PredictionService(IPredictionService):
             country_code=country_code,
             prediction_date=prediction_date
         )
-    
     def _get_actual_prices(self, country_code: str, prediction_date: str) -> Dict[str, float]:
         """
         Retrieve actual historical price data for a specific date and country
@@ -299,8 +301,8 @@ class PredictionService(IPredictionService):
         """
         try:
             # Use our local path helper
-            zone_paths = self.get_zone_paths(country_code)
-            csv_file = zone_paths.prediction_data
+            paths = self.get_zone_paths(country_code)
+            csv_file = paths["prediction_data"]
             
             if not os.path.exists(csv_file):
                 print(f"[WARNING] No price data file found: {csv_file}")
