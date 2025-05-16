@@ -187,4 +187,139 @@ Carbon_Emission_price_EUR Carbon_Emission_price_EUR_lag_1d Carbon_Emission_price
 Price[Currency/MWh]
 
 
+python -u main_informer.py \
+  --model informer \
+  --data custom \
+  --root_path ./resources \
+  --data_path DK2_full_data_2018_2024.csv \
+  --features MS \
+  --target Electricity_price_MWh \
+  --seq_len 720 \
+  --label_len 168 \
+  --pred_len 24 \
+  --factor 3 \
+  --d_model 256 \
+  --d_ff 512 \
+  --n_heads 4 \
+  --e_layers 3 --d_layers 1 \
+  --enc_in 39 --dec_in 39 --c_out 1 \
+  --batch_size 64 \
+  --learning_rate 3e-4 \
+  --dropout 0.1 \
+  --train_epochs 40 --patience 8 \
+  --num_workers 16 \
+  --des "dk2"
+
+  python -u main_informer.py \
+  --model informer \
+  --data custom \
+  --root_path ./resources \
+  --data_path DK2_full_data_2018_2024.csv \
+  --features MS \
+  --target Electricity_price_MWh \
+  --seq_len 720 \
+  --label_len 168 \
+  --pred_len 24 \
+  --factor 3 \
+  --d_model 256 \
+  --d_ff 512 \
+  --n_heads 4 \
+  --e_layers 1 --d_layers 1 \
+  --enc_in 39 --dec_in 39 --c_out 1 \
+  --batch_size 64 \
+  --learning_rate 3e-4  \
+  --dropout 0.1 \
+  --train_epochs 40 --patience 8 \
+  --num_workers 16 \
+  --des "dk2_11"
+
+python -u main_informer.py \
+  --model informer \
+  --data custom \
+  --root_path ./resources \
+  --data_path DK2_full_data_2018_2024.csv \
+  --features MS \
+  --target Electricity_price_MWh \
+  --seq_len 720  --label_len 168  --pred_len 24 \
+  --factor 3 \
+  --d_model 256  \
+  --d_ff 512  \
+  --n_heads 8 \
+  --d_layers 1 \
+  --enc_in 39   --dec_in 39  --c_out 1 \
+  --batch_size 64  \
+  --learning_rate 3e-4  \
+  --dropout 0.1 \
+  --num_workers 16 \
+  --train_epochs 40  --patience 8 \
+  --des "dk2_12"
+
+  Næste som skal køres:
+  python -u main_informer.py \
+  --model informer \
+  --data custom \
+  --root_path ./resources \
+  --data_path DK2_full_data_2018_2024.csv \
+  --features MS \
+  --target Electricity_price_MWh \
+  --seq_len 1440 \
+  --label_len 336 \
+  --pred_len 24 \
+  --factor 3 \
+  --d_model 512 \
+  --d_ff 1024   \
+  --n_heads 8 \
+  --e_layers 4 --d_layers 1 \
+  --enc_in 39 --dec_in 39 --c_out 1 \
+  --batch_size 128 \
+  --learning_rate 8e-4  \
+  --dropout 0.2 \
+  --train_epochs 40 --patience 8 \
+  --num_workers 16 \
+  --des "dk2_13"
+
+  python -u main_informer.py \
+  --model informer \
+  --data custom \
+  --root_path ./resources \
+  --data_path DK2_full_data_2018_2024.csv \
+  --features MS \
+  --target Electricity_price_MWh \
+  --seq_len 1440 \
+  --label_len 336 \
+  --pred_len 24 \
+  --factor 3 \
+  --d_model 512 \
+  --d_ff 1024   \
+  --n_heads 8 \
+  --e_layers 1 --d_layers 1 \
+  --enc_in 39 --dec_in 39 --c_out 1 \
+  --batch_size 64 \
+  --learning_rate 3e-4  \
+  --dropout 0.2 \
+  --train_epochs 40 --patience 8 \
+  --num_workers 16 \
+  --des "dk2_14"
+
+changed exp/expinformer
+
+linje
+
+  python -u main_informer.py \
+  --model informer \
+  --data custom \
+  --root_path ./resources \
+  --data_path DK2_full_data_2018_2024.csv \
+  --features MS \
+  --target Electricity_price_MWh \
+  --seq_len 720  --label_len 168  --pred_len 24 \
+  --factor 3 \
+  --d_model 256  --d_ff 512  --n_heads 8 \
+  --e_layers 3  --d_layers 1 \
+  --enc_in 39   --dec_in 1   --c_out 1 \
+  --batch_size 64  --learning_rate 3e-4 \
+  --dropout 0.3 \
+  --num_workers 16 \
+  --train_epochs 40  --patience 8 \
+  --des dk2_logtarget
 '''
