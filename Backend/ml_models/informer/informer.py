@@ -24,7 +24,7 @@ class InformerWrapper:
             weight_path: Path to the Informer model weights
             device: Device to run the model on ('cpu' or 'cuda')
             feature_dim: Optional dimension of input features, will override config value if provided
-        """
+        """        # Read the config file for dimensions
         try:
             with open(config_path) as f:
                 full_config = json.load(f)
@@ -69,11 +69,45 @@ class InformerWrapper:
             if key not in full_config:
                 full_config[key] = default_value
         
-        # Override with feature_dim if provided
-        if feature_dim is not None:
-            print(f"Overriding feature dimensions with provided value: {feature_dim}")
-            full_config["enc_in"] = feature_dim
-            full_config["dec_in"] = feature_dim
+        # Preserve the trained model structure if we're loading weights
+        try:
+            # Get model architecture from saved weights
+            saved_state = torch.load(weight_path, map_location=device)
+            
+            # Check for encoder architecture
+            if "encoder.attn_layers.0.conv1.weight" in saved_state:
+                enc_weight = saved_state["encoder.attn_layers.0.conv1.weight"]
+                if len(enc_weight.shape) > 1:
+                    # Extract d_ff from encoder conv1 weight shape
+                    d_ff = enc_weight.shape[0]
+                    print(f"Detected d_ff={d_ff} from saved weights")
+                    full_config["d_ff"] = d_ff
+            
+            # Check for input feature dimension
+            if "enc_embedding.value_embedding.tokenConv.weight" in saved_state:
+                enc_weight = saved_state["enc_embedding.value_embedding.tokenConv.weight"]
+                if len(enc_weight.shape) > 1:
+                    # Extract enc_in from encoder embedding weight shape
+                    enc_in = enc_weight.shape[1]
+                    print(f"Detected enc_in={enc_in} from saved weights")
+                    full_config["enc_in"] = enc_in
+                    full_config["dec_in"] = enc_in
+            
+            # Check if we need to force feature_dim to match the trained model
+            if feature_dim and feature_dim != full_config["enc_in"]:
+                print(f"WARNING: Input data has {feature_dim} features but model was trained with {full_config['enc_in']} features")
+                print(f"Consider preparing your data to have exactly {full_config['enc_in']} features")
+                
+                # We'll use the model's dimensions since we want to load the weights correctly
+                feature_dim = full_config["enc_in"]
+        except Exception as e:
+            print(f"Could not analyze model weights: {e}. Using provided configuration.")
+            
+            # Override with feature_dim if provided
+            if feature_dim is not None:
+                print(f"Overriding feature dimensions with provided value: {feature_dim}")
+                full_config["enc_in"] = feature_dim
+                full_config["dec_in"] = feature_dim
         
         allowed_keys = {
             "enc_in", "dec_in", "c_out", "seq_len", "label_len", "out_len",

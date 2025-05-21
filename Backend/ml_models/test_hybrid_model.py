@@ -21,7 +21,7 @@ def main():
     parser.add_argument('--zone', type=str, default="DK1", help="Zone code (e.g., DK1, SE1)")
     parser.add_argument('--date', type=str, default="2025-05-01", help="Prediction date (YYYY-MM-DD)")
     parser.add_argument('--test-mode', action="store_true", help="Use test mode instead of real model")
-      args = parser.parse_args()
+    args = parser.parse_args()
     print(f"🚀 Testing hybrid model for zone {args.zone} on date {args.date}")
     
     try:

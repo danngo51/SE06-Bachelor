@@ -26,10 +26,10 @@ def predict_with_hybrid_model(country_code: str, prediction_date: str,
         input_file_path: Optional path to the input file
         config_path: Path to the Informer config file
         weight_path: Path to the Informer model weights
-        gru_path: Path to the GRU model weights
+        gru_path: Path to the GRU model weights (not used when testing Informer only)
         
     Returns:
-        HybridModelOutput with predictions from both models
+        HybridModelOutput with predictions from Informer model
     """
     try:
         # Set up device for model computation
@@ -53,37 +53,57 @@ def predict_with_hybrid_model(country_code: str, prediction_date: str,
             print(f"Using provided Informer weights path: {weight_path}")
         else:
             print(f"Informer weights path not provided or does not exist")
-            
-        if gru_path and os.path.exists(gru_path):
-            print(f"Using provided GRU weights path: {gru_path}")
-        else:
-            print(f"GRU weights path not provided or does not exist")
         
         # Read data to determine feature dimension
         df = pd.read_csv(input_file_path)
         feature_dim = len(df.columns)
         print(f"Input data has {feature_dim} features")
-        
-        # Load Informer model with feature dimension information
+          # Load Informer model with feature dimension information
         informer = InformerWrapper(
             config_path=config_path,
             weight_path=weight_path,
             device=device,
             feature_dim=feature_dim  # Pass feature dimension to override config
-        )
-
-        gru = GRUWrapper(
-            gru_path=gru_path,
-            regressor_path=None,  # Not used anymore, but kept for interface compatibility
-            input_dim=512,
-            hidden_dim=128,
-            output_dim=24,
-            device=device,
-            bidirectional=False
-        )
+        )        # Get info from the config if possible
+        feature_list = None
+        model_enc_in = None
+        
+        if config_path and os.path.exists(config_path):
+            try:
+                import json
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                    if "cols" in config:
+                        feature_list = config["cols"]
+                        print(f"Loaded {len(feature_list)} features from config file")
+                    if "enc_in" in config:
+                        model_enc_in = config["enc_in"]
+                        print(f"Model expects {model_enc_in} input features")
+            except Exception as e:
+                print(f"Error loading feature list from config: {e}")
+        
+        # Check if model's saved weights can give us enc_in information
+        if weight_path and os.path.exists(weight_path):
+            try:
+                # Load model state dict to analyze structure without loading the whole model
+                model_dict = torch.load(weight_path, map_location=device)
+                if "enc_embedding.value_embedding.tokenConv.weight" in model_dict:
+                    weight = model_dict["enc_embedding.value_embedding.tokenConv.weight"]
+                    detected_enc_in = weight.shape[1]
+                    if model_enc_in and model_enc_in != detected_enc_in:
+                        print(f"⚠️ Config enc_in={model_enc_in} does not match saved weights enc_in={detected_enc_in}")
+                    model_enc_in = detected_enc_in
+                    print(f"Detected {model_enc_in} input features from saved weights")
+            except Exception as e:
+                print(f"Could not analyze model weights: {e}")
 
         # Load and preprocess input using local _load_prediction_data function
-        x_enc, x_mark_enc, x_dec, x_mark_dec = _load_prediction_data(input_file_path, country_code=country_code)
+        x_enc, x_mark_enc, x_dec, x_mark_dec = _load_prediction_data(
+            input_file_path, 
+            country_code=country_code,
+            feature_list=feature_list,
+            enc_in=model_enc_in
+        )
 
         x_enc = x_enc.to(device)
         x_mark_enc = x_mark_enc.to(device)
@@ -92,53 +112,44 @@ def predict_with_hybrid_model(country_code: str, prediction_date: str,
         
         # Prediction with better error handling
         informer_predictions = [0] * 24  # Initialize with zeros in case of error
-        gru_predictions = [0] * 24       # Initialize with zeros in case of error
         
         try:
-            # Try to run the Informer model first
+            # Try to run the Informer model only
             with torch.no_grad():
                 enc_out, informer_pred = informer.run(x_enc, x_mark_enc, x_dec, x_mark_dec)
             
             # Move informer predictions to CPU and convert to numpy
             informer_predictions = informer_pred.cpu().numpy()[0, :, 0].tolist()
             print(f"✅ Informer prediction successful for {country_code}")
-            
-            try:
-                # Now try to run the GRU model
-                with torch.no_grad():
-                    gru_pred = gru.run(enc_out)
-                
-                # Move GRU predictions to CPU and convert to numpy
-                gru_predictions = gru_pred.cpu().numpy()[0, :].tolist()
-                print(f"✅ GRU prediction successful for {country_code}")
-                
-            except Exception as gru_error:
-                # GRU model failed, use test predictions instead
-                print(f"❌ GRU model error: {gru_error}")
-                print("⚠️ Using test predictions for GRU model")
-                test_output = test_predict(country_code, prediction_date)
-                gru_predictions = test_output.gru_prediction
+            print(f"\nInformer model predictions: {informer_predictions[:5]}... (showing first 5 hours)")
         
         except Exception as informer_error:
-            # Informer model failed, use test predictions for both
+            # Informer model failed, use test predictions
             print(f"❌ Informer model error: {informer_error}")
-            print("⚠️ Using test predictions for both models")
+            print("⚠️ Using test predictions for Informer model")
             test_output = test_predict(country_code, prediction_date)
             informer_predictions = test_output.informer_prediction
-            gru_predictions = test_output.gru_prediction
         
         # Debug: Print predictions to console
         print(f"\nGenerated predictions for {country_code} on {prediction_date}")
         
-        # Ensure we have exactly 24 hours of predictions for each model
+        # Ensure we have exactly 24 hours of predictions
         informer_predictions = informer_predictions[:24] if len(informer_predictions) >= 24 else informer_predictions + [0] * (24 - len(informer_predictions))
-        gru_predictions = gru_predictions[:24] if len(gru_predictions) >= 24 else gru_predictions + [0] * (24 - len(gru_predictions))
     
-        # Return the combined output
+        # Return output with Informer predictions used for all fields
         return HybridModelOutput(
             informer_prediction=informer_predictions,
-            gru_prediction=gru_predictions,
-            model_prediction=gru_predictions
+            gru_prediction=informer_predictions,  # Use Informer predictions instead of GRU
+            model_prediction=informer_predictions  # Use Informer predictions as the final model output
+        )
+        
+    except Exception as e:
+        print(f"An error occurred during prediction: {e}")
+        # Return empty predictions in case of error
+        return HybridModelOutput(
+            informer_prediction=[0] * 24,
+            gru_prediction=[0] * 24,
+            model_prediction=[0] * 24
         )
         
     except Exception as e:
@@ -240,7 +251,7 @@ def test_predict(country_code: str, prediction_date: str, input_file_path: str =
     )
 
 
-def _load_prediction_data(input_path, country_code=None, seq_len=168, label_len=24, pred_len=24):
+def _load_prediction_data(input_path, country_code=None, seq_len=168, label_len=24, pred_len=24, feature_list=None, enc_in=None):
     """
     Loads and preprocesses input CSV data for prediction.
     Works with non-normalized data for zone-specific files.
@@ -252,6 +263,8 @@ def _load_prediction_data(input_path, country_code=None, seq_len=168, label_len=
         seq_len: Sequence length for the encoder (168 hours = 7 days)
         label_len: Label length for the decoder
         pred_len: Prediction length for the decoder
+        feature_list: Optional list of features to use from the CSV file
+        enc_in: Expected input features dimension for the model
         
     Returns:
         x_enc, x_mark_enc, x_dec, x_mark_dec tensors.
@@ -263,9 +276,34 @@ def _load_prediction_data(input_path, country_code=None, seq_len=168, label_len=
     df = pd.read_csv(input_path)
     print(f"Loaded data from {input_path} for zone {country_code}")
     
-    # Use all columns from the CSV file directly
-    FEATURES = list(df.columns)
-    print(f"Using all {len(FEATURES)} columns directly from input file")
+    # Use provided feature list or all columns from the CSV file
+    if feature_list:
+        # Check which columns are actually in the data
+        available_features = [f for f in feature_list if f in df.columns]
+        if len(available_features) != len(feature_list):
+            missing = set(feature_list) - set(available_features)
+            print(f"⚠️ Not all requested features found in data. Missing: {missing}")
+            
+        FEATURES = available_features
+        print(f"Using {len(FEATURES)} available features from provided list of {len(feature_list)}")
+    else:
+        FEATURES = list(df.columns)
+        print(f"Using all {len(FEATURES)} columns directly from input file")
+        
+    # If enc_in is provided, make sure we have the right number of features
+    if enc_in is not None:
+        if len(FEATURES) > enc_in:
+            print(f"⚠️ Too many features: trimming from {len(FEATURES)} to {enc_in} to match model input size")
+            FEATURES = FEATURES[:enc_in]
+        elif len(FEATURES) < enc_in:
+            print(f"⚠️ Not enough features: model expects {enc_in} but data has {len(FEATURES)}")
+            # Fill with zero columns if needed
+            missing_count = enc_in - len(FEATURES)
+            for i in range(missing_count):
+                col_name = f"zero_pad_{i}"
+                df[col_name] = 0
+                FEATURES.append(col_name)
+            print(f"Added {missing_count} zero-filled columns to match model dimensions")
     
     # Ensure the price column is the first feature as expected by the model
     # Different files might use different column names for price
@@ -287,12 +325,6 @@ def _load_prediction_data(input_path, country_code=None, seq_len=168, label_len=
         FEATURES.insert(0, price_column)
         print(f"Reordered features to put '{price_column}' first: {FEATURES[:5]}...")
     
-    # Ensure all features actually exist in the data
-    validated_features = [f for f in FEATURES if f in df.columns]
-    if len(validated_features) != len(FEATURES):
-        print(f"⚠️ Not all configured features found in data. Missing: {set(FEATURES) - set(validated_features)}")
-        FEATURES = validated_features
-    
     # Make sure columns are in the defined order
     # For columns not in the dataset, fill with zeros
     for feature in FEATURES:
@@ -301,7 +333,7 @@ def _load_prediction_data(input_path, country_code=None, seq_len=168, label_len=
             df[feature] = 0
     
     df = df[FEATURES]
-
+    
     # Only use the last 7 days (168 hours) of data
     if len(df) > seq_len:
         print(f"Filtering to use only the last {seq_len} hours (7 days) of data for prediction")
@@ -315,7 +347,8 @@ def _load_prediction_data(input_path, country_code=None, seq_len=168, label_len=
 
     # Build encoder input
     x_enc = data_tensor.unsqueeze(0)  # [batch_size, seq_len, num_features]
-      # For x_mark_enc, x_dec, x_mark_dec:
+    
+    # For x_mark_enc, x_dec, x_mark_dec:
     # If you don't use additional temporal encodings, you can just create dummy zeros
     batch_size = 1
     num_features = len(FEATURES)  # Use FEATURES instead of features
