@@ -1,14 +1,16 @@
-import os
-import pathlib
-import pandas as pd
-import numpy as np
+# filepath: d:\Skole Projekter\6. sem\SE06-Bachelor\Backend\services\prediction\PredictionService.py
+from interfaces.PredictionServiceInterface import IPredictionService
+from typing import Dict, List, Optional
+from model.prediction import PredictionRequest, PredictionResponse, CountryPredictionData, HourlyPredictionData, HybridModelOutput
 import datetime
 import random
-from typing import Dict, List, Optional, Union
+import math
+import ml_models.hybrid_model as hybrid_model
+import pandas as pd
+import os
+import pathlib
 from dataclasses import dataclass
 
-from model.prediction import PredictionRequest, PredictionResponse, CountryPredictionData, HourlyPredictionData, HybridModelOutput
-from ml_models.Hybrid_Model import hybrid_model
 
 @dataclass
 class ZonePaths:
@@ -17,8 +19,15 @@ class ZonePaths:
     prediction_data: pathlib.Path
     training_data: pathlib.Path
     
-    # Model paths
-    regime_dir: pathlib.Path
+    # Informer paths
+    config: pathlib.Path
+    default_config: pathlib.Path
+    informer_weights: pathlib.Path
+    default_informer_weights: pathlib.Path
+    
+    # GRU paths
+    gru_weights: pathlib.Path
+    default_gru_weights: pathlib.Path
     
     @property
     def prediction_data_str(self) -> str:
@@ -26,46 +35,49 @@ class ZonePaths:
         return str(self.prediction_data)
     
     @property
-    def training_data_str(self) -> str:
-        """Get training data path as string"""
-        return str(self.training_data)
+    def config_path(self) -> str:
+        """Get config path with fallback to default"""
+        return str(self.config) if os.path.exists(self.config) else str(self.default_config)
     
     @property
-    def normal_model_path(self) -> str:
-        """Get path to normal regime model"""
-        return str(self.regime_dir / "model_normal.pkl")
+    def weight_path(self) -> str:
+        """Get informer weights path with fallback to default"""
+        return str(self.informer_weights) if os.path.exists(self.informer_weights) else str(self.default_informer_weights)
     
     @property
-    def spike_model_path(self) -> str:
-        """Get path to spike regime model"""
-        return str(self.regime_dir / "model_spike.pkl")
+    def gru_path(self) -> str:
+        """Get GRU weights path with fallback to default"""
+        return str(self.gru_weights) if os.path.exists(self.gru_weights) else str(self.default_gru_weights)
     
     def check_missing_files(self) -> List[str]:
         """Check for missing required model files"""
         missing_files = []
         
-        if not os.path.exists(self.normal_model_path):
-            missing_files.append(f"normal regime model: {self.normal_model_path}")
+        if not os.path.exists(self.config_path):
+            missing_files.append(f"config file: {self.config_path}")
         
-        if not os.path.exists(self.spike_model_path):
-            missing_files.append(f"spike regime model: {self.spike_model_path}")
+        if not os.path.exists(self.weight_path):
+            missing_files.append(f"Informer weights: {self.weight_path}")
+            
+        if not os.path.exists(self.gru_path):
+            missing_files.append(f"GRU weights: {self.gru_path}")
             
         return missing_files
 
-class PredictionService:
+
+class PredictionService(IPredictionService):
     """
     Service for electricity price predictions using the hybrid model
     """
     # Define paths once for reuse
-    ROOT_PATH = pathlib.Path(__file__).parent.parent.parent  # MLs directory
+    ROOT_PATH = pathlib.Path(__file__).parent.parent.parent.parent
     ML_MODELS_DIR = ROOT_PATH / "ml_models"
     DATA_DIR = ML_MODELS_DIR / "data"
+    INFORMER_DIR = ML_MODELS_DIR / "informer"
+    GRU_DIR = ML_MODELS_DIR / "gru"
     
     # Dictionary to store zone paths (cached for reuse)
     _zone_paths_cache: Dict[str, ZonePaths] = {}
-    
-    def __init__(self, mapCode="DK1"):
-        self.mapCode = mapCode
     
     @staticmethod
     def get_zone_paths(country_code: str) -> ZonePaths:
@@ -83,14 +95,20 @@ class PredictionService:
             return PredictionService._zone_paths_cache[country_code]
         
         # Create new ZonePaths object for this zone
-        data_dir = PredictionService.DATA_DIR / country_code
         paths = ZonePaths(
             # Data paths
-            prediction_data=data_dir / f"{country_code}_full_data_2025.csv",
-            training_data=data_dir / f"{country_code}_full_data_2018_2024.csv",
+            prediction_data=PredictionService.DATA_DIR / country_code / "prediction_data.csv",
+            training_data=PredictionService.DATA_DIR / country_code / "training_data.csv",
             
-            # Model paths
-            regime_dir=data_dir / "regime_models",
+            # Informer paths
+            config=PredictionService.INFORMER_DIR / country_code / "config.json",
+            default_config=PredictionService.INFORMER_DIR / "config.json",
+            informer_weights=PredictionService.INFORMER_DIR / country_code / "results" / "checkpoint.pth",
+            default_informer_weights=PredictionService.INFORMER_DIR / "results" / "checkpoint.pth",
+            
+            # GRU paths
+            gru_weights=PredictionService.GRU_DIR / country_code / "results" / "gru_trained.pt",
+            default_gru_weights=PredictionService.GRU_DIR / "results" / "gru_trained.pt",
         )
         
         # Cache the paths for future use
@@ -136,9 +154,7 @@ class PredictionService:
                     print(f"⚠️ Input file not found for {country_code}: {input_file}")
                     print(f"Using test predictions for {country_code}")
                     model_output = hybrid_model.test_predict(country_code, prediction_date)
-                    country_predictions_dict[country_code] = self._process_model_results(
-                        model_output, country_code, prediction_date
-                    )
+                    country_predictions_dict[country_code] = self._process_model_results(model_output, country_code, prediction_date)
                     continue
                 
                 # Check if any required model files are missing
@@ -154,7 +170,10 @@ class PredictionService:
                     model_output = hybrid_model.predict_with_hybrid_model(
                         country_code, 
                         prediction_date,
-                        input_file_path=input_file
+                        input_file_path=input_file,
+                        config_path=zone_paths.config_path,
+                        weight_path=zone_paths.weight_path,
+                        gru_path=zone_paths.gru_path
                     )
                 
                 country_predictions_dict[country_code] = self._process_model_results(
@@ -212,7 +231,7 @@ class PredictionService:
         
         # Return structured response
         return PredictionResponse(predictions=country_predictions)
-    
+
     def _process_model_results(self, model_output: HybridModelOutput, country_code: str, prediction_date: str) -> CountryPredictionData:
         """Process model results into the expected format for a country"""
         # Extract all predictions from model output
