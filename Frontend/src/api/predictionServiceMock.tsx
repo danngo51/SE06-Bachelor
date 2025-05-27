@@ -50,23 +50,24 @@ export const fetchPredictionData = async (
     } catch (error) {
       console.warn('Error calculating date factor, using default', error);
     }
-    
-    for (let hour = 0; hour < 24; hour++) {
+      for (let hour = 0; hour < 24; hour++) {
       // Create variation in the data
       const baseValue = 50 + Math.sin(hour / 3) * 20 + (countryFactor % 10);
       const hourlyPattern = hour < 7 || hour > 19 ? 0.7 : 1.3; // Lower at night, higher during day
-        hourlyData[hour.toString()] = {
+      
+      hourlyData[hour.toString()] = {
         informer: baseValue * hourlyPattern + Math.random() * 5,
         gru: baseValue * hourlyPattern + Math.random() * 7,
         xgboost: baseValue * hourlyPattern + Math.random() * 6,
         model: baseValue * hourlyPattern + Math.random() * 10,
-        actual: baseValue * hourlyPattern * (1 + (Math.random() * 0.2 - 0.1)) + dateFactor
+        actual_price: baseValue * hourlyPattern * (1 + (Math.random() * 0.2 - 0.1)) + dateFactor
       };
     }
     
     return hourlyData;
   };
-    // Create an array of country data objects
+  
+  // Create an array of country data objects
   const countries = safeCountryCodes.map(countryCode => ({
     countryCode: countryCode,
     hourlyData: generateHourlyDataForCountry(countryCode)

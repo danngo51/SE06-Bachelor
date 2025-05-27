@@ -9,7 +9,7 @@ export const PREDICTION_DATA_SERIES = {
   GRU_MODEL: 'gru',
   XGBOOST: 'xgboost',
   PREDICTION_MODEL: 'model',
-  ACTUAL_PRICE: 'actual'
+  ACTUAL_PRICE: 'actual_price'
 };
 
 // Other constants related to the prediction feature

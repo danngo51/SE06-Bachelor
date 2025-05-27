@@ -9,7 +9,7 @@ export interface HourlyPredictionData {
   gru: number;
   xgboost: number;
   model: number;
-  actual: number;
+  actual_price: number;
 }
 
 // Structure for a single country's prediction data

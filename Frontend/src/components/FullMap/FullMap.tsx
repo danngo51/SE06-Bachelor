@@ -96,9 +96,7 @@ const FullMap = () => {
             // Initialize drawing tools only once
             initializeDrawingTools(mapRef.current, drawingRef.current);
         }
-    }, []);
-
-    useEffect(() => {
+    }, []);    useEffect(() => {
         if (markedArea !== null) {
             console.log('Marked area:', markedArea);
             console.log("area:", markedArea.properties?.area) // Log the entire object
@@ -112,11 +110,11 @@ const FullMap = () => {
         }
 
         const countryName = markedArea.properties.country;
-        const countryCode = markedArea.properties.iso_a2;
+        const countryCode = markedArea.properties.area; // Changed from iso_a2 to area
         
         // Check if countryCode exists, use a default if not
         if (!countryCode) {
-            console.warn(`No ISO code found for ${countryName}, using 'XX' as fallback`);
+            console.warn(`No area code found for ${countryName}, using 'XX' as fallback`);
         }
         
         console.log(`Prediction requested for ${countryName} (${countryCode || 'XX'}) on date: ${date}`);

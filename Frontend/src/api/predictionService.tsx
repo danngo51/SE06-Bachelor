@@ -57,11 +57,11 @@ export const fetchPredictionData = async (
       // Check at least one hour entry to validate the structure has all required model fields
       const hourKeys = Object.keys(country.hourlyData);
       if (hourKeys.length > 0) {
-        const sampleHourData = country.hourlyData[hourKeys[0]];
-        if (!('informer' in sampleHourData && 
+        const sampleHourData = country.hourlyData[hourKeys[0]];        if (!('informer' in sampleHourData && 
               'gru' in sampleHourData && 
+              'xgboost' in sampleHourData && 
               'model' in sampleHourData && 
-              'actual' in sampleHourData)) {
+              'actual_price' in sampleHourData)) {
           console.warn('Missing expected model fields in hourly data', sampleHourData);
         }
       }
