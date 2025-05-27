@@ -14,7 +14,8 @@ const FullMapMenu = ({
     markedArea
 }: FullMapMenuProps) => {
     const [selectedDate, setSelectedDate] = useState<string>('');
-    const [weights, setWeights] = useState({ gru: 0.0, informer: 0.0, xgboost: 1.0 });
+    // Store weights as percentages for display (0-100 range)
+    const [weightsPercentage, setWeightsPercentage] = useState({ gru: 0, informer: 0, xgboost: 100 });
     
     useEffect(() => {
         // Reset selected date when highlight state changes
@@ -24,11 +25,78 @@ const FullMapMenu = ({
     // Function to handle date change
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSelectedDate(e.target.value);
+    };    // Convert percentage weights to decimal weights for API
+    const convertToDecimalWeights = (percentageWeights: { gru: number; informer: number; xgboost: number }) => {
+        return {
+            gru: percentageWeights.gru / 100,
+            informer: percentageWeights.informer / 100,
+            xgboost: percentageWeights.xgboost / 100
+        };
     };
-      // Function to handle predict button click
+
+    // Function to handle weight changes with validation
+    const handleWeightChange = (model: 'gru' | 'informer' | 'xgboost', newValue: number) => {
+        // Ensure the new value is not negative
+        const clampedValue = Math.max(0, newValue);
+        
+        // Calculate current total excluding the model being changed
+        const otherModelsTotal = Object.keys(weightsPercentage)
+            .filter(key => key !== model)
+            .reduce((sum, key) => sum + weightsPercentage[key as keyof typeof weightsPercentage], 0);
+        
+        // Ensure the new value doesn't make total exceed 100
+        const maxAllowedValue = 100 - otherModelsTotal;
+        const finalValue = Math.min(clampedValue, maxAllowedValue);
+        
+        setWeightsPercentage({
+            ...weightsPercentage,
+            [model]: finalValue
+        });
+    };    // Function to auto-balance weights to total 100%
+    const autoBalanceWeights = () => {
+        const currentTotal = totalWeight;
+        if (currentTotal === 0) {
+            // If all weights are 0, distribute equally
+            setWeightsPercentage({ gru: 33, informer: 33, xgboost: 34 });
+        } else if (currentTotal !== 100) {
+            // Proportionally adjust all weights to sum to 100
+            const scaleFactor = 100 / currentTotal;
+            let newGru = Math.round(weightsPercentage.gru * scaleFactor);
+            let newInformer = Math.round(weightsPercentage.informer * scaleFactor);
+            let newXgboost = Math.round(weightsPercentage.xgboost * scaleFactor);
+            
+            // Handle rounding errors to ensure total is exactly 100
+            const newTotal = newGru + newInformer + newXgboost;
+            const diff = 100 - newTotal;
+            
+            // Adjust the largest weight to account for rounding differences
+            if (diff !== 0) {
+                if (newXgboost >= newGru && newXgboost >= newInformer) {
+                    newXgboost += diff;
+                } else if (newGru >= newInformer) {
+                    newGru += diff;
+                } else {
+                    newInformer += diff;
+                }
+            }
+            
+            setWeightsPercentage({
+                gru: Math.max(0, newGru),
+                informer: Math.max(0, newInformer),
+                xgboost: Math.max(0, newXgboost)
+            });
+        }
+    };
+
+    // Calculate if total weights equal 100%
+    const totalWeight = weightsPercentage.gru + weightsPercentage.informer + weightsPercentage.xgboost;
+    const isValidWeightTotal = totalWeight === 100;
+
+    // Function to handle predict button click
     const handlePredict = () => {
-        if (selectedDate) {
-            featureProb(selectedDate, weights);
+        if (selectedDate && isValidWeightTotal) {
+            const decimalWeights = convertToDecimalWeights(weightsPercentage);
+            featureProb(selectedDate, decimalWeights);
         }
     };
     
@@ -59,10 +127,8 @@ const FullMapMenu = ({
                                 value={selectedDate}
                                 onChange={handleDateChange}
                             />
-                        </div>
-                        
-                        <div className={styles.weightsContainer}>
-                            <label className={styles.weightsLabel}>Model Weights:</label>
+                        </div>                        <div className={styles.weightsContainer}>
+                            <label className={styles.weightsLabel}>Model Weights (%):</label>
                             <div className={styles.weightInputs}>
                                 <div className={styles.weightInput}>
                                     <label htmlFor="gru-weight">GRU:</label>
@@ -70,11 +136,12 @@ const FullMapMenu = ({
                                         type="number" 
                                         id="gru-weight"
                                         min="0" 
-                                        max="1" 
-                                        step="0.1"
-                                        value={weights.gru}
-                                        onChange={(e) => setWeights({...weights, gru: parseFloat(e.target.value) || 0})}
+                                        max="100" 
+                                        step="1"
+                                        value={weightsPercentage.gru}
+                                        onChange={(e) => handleWeightChange('gru', parseInt(e.target.value) || 0)}
                                     />
+                                    <span>%</span>
                                 </div>
                                 <div className={styles.weightInput}>
                                     <label htmlFor="informer-weight">Informer:</label>
@@ -82,11 +149,12 @@ const FullMapMenu = ({
                                         type="number" 
                                         id="informer-weight"
                                         min="0" 
-                                        max="1" 
-                                        step="0.1"
-                                        value={weights.informer}
-                                        onChange={(e) => setWeights({...weights, informer: parseFloat(e.target.value) || 0})}
+                                        max="100" 
+                                        step="1"
+                                        value={weightsPercentage.informer}
+                                        onChange={(e) => handleWeightChange('informer', parseInt(e.target.value) || 0)}
                                     />
+                                    <span>%</span>
                                 </div>
                                 <div className={styles.weightInput}>
                                     <label htmlFor="xgboost-weight">XGBoost:</label>
@@ -94,19 +162,30 @@ const FullMapMenu = ({
                                         type="number" 
                                         id="xgboost-weight"
                                         min="0" 
-                                        max="1" 
-                                        step="0.1"
-                                        value={weights.xgboost}
-                                        onChange={(e) => setWeights({...weights, xgboost: parseFloat(e.target.value) || 0})}
+                                        max="100" 
+                                        step="1"
+                                        value={weightsPercentage.xgboost}
+                                        onChange={(e) => handleWeightChange('xgboost', parseInt(e.target.value) || 0)}
                                     />
+                                    <span>%</span>
                                 </div>
+                            </div>                            <div className={`${styles.totalWeight} ${!isValidWeightTotal ? styles.totalWeightError : styles.totalWeightValid}`}>
+                                Total: {totalWeight}% {!isValidWeightTotal && '(Must equal 100%)'}
                             </div>
+                            {!isValidWeightTotal && (
+                                <button 
+                                    type="button"
+                                    onClick={autoBalanceWeights}
+                                    className={styles.autoBalanceButton}
+                                >
+                                    Auto Balance to 100%
+                                </button>
+                            )}
                         </div>
-                        
-                        <button
-                            onClick={handlePredict} // Changed to use handlePredict
-                            className={selectedDate ? `${styles.labelButton}` : `${styles.labelButtonDisabled}`}
-                            disabled={!selectedDate}
+                          <button
+                            onClick={handlePredict}
+                            className={(selectedDate && isValidWeightTotal) ? `${styles.labelButton}` : `${styles.labelButtonDisabled}`}
+                            disabled={!selectedDate || !isValidWeightTotal}
                         >
                             Predict
                         </button>

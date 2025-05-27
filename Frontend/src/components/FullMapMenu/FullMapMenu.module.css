@@ -115,6 +115,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 5px;
 }
 
 .weightInput label {
@@ -123,9 +124,52 @@
 }
 
 .weightInput input {
-    width: 60px;
+    width: 50px;
     padding: 4px;
     border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 12px;
+}
+
+.weightInput span {
+    font-size: 12px;
+    color: #666;
+    min-width: 15px;
+}
+
+.totalWeight {
+    margin-top: 8px;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.totalWeightValid {
+    color: #00AA00;
+    background-color: #f0f8f0;
+    border: 1px solid #00AA00;
+}
+
+.totalWeightError {
+    color: #cc0000;
+    background-color: #fdf0f0;
+    border: 1px solid #cc0000;
+}
+
+.autoBalanceButton {
+    margin-top: 5px;
+    padding: 4px 8px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.autoBalanceButton:hover {
+    background-color: #0056b3;
 }
