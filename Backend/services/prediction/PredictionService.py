@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from model.prediction import PredictionRequest, PredictionResponse, CountryPredictionData, HourlyPredictionData, HybridModelOutput
 from ml_models.Hybrid_Model import hybrid_model
+from interfaces.PredictionServiceInterface import IPredictionService
 
 @dataclass
 class ZonePaths:
@@ -70,7 +71,7 @@ class ZonePaths:
             
         return missing_files
 
-class PredictionService:
+class PredictionService(IPredictionService):
     """
     Service for electricity price predictions using the hybrid model
     """

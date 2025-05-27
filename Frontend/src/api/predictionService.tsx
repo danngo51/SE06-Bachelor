@@ -14,7 +14,8 @@ const API_BASE_URL =  'http://127.0.0.1:8000';
  */
 export const fetchPredictionData = async (
   countryCode: string, 
-  date: string
+  date: string,
+  weights: string,
 ): Promise<PredictionDataResponse> => {
   try {
     // Make sure we have valid parameters

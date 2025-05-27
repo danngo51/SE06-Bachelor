@@ -5,7 +5,7 @@ import joblib
 import pathlib
 from typing import Dict, Any, Optional, Union, List, Tuple
 
-from ml_models.base_pipeline import ModelPipeline
+from interfaces.base_pipeline import ModelPipeline
 from ml_models.XGBoost.XGBoost_model import XGBoostRegimeModel
 
 class XGBoostPipeline(ModelPipeline):

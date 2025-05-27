@@ -10,7 +10,7 @@ import joblib
 from typing import Dict, Any, Optional, Union, List, Tuple
 from sklearn.preprocessing import StandardScaler
 
-from ml_models.base_pipeline import ModelPipeline
+from interfaces.base_pipeline import ModelPipeline
 from ml_models.GRU.GRU_model import GRUModel
 
 class GRUPipeline(ModelPipeline):
