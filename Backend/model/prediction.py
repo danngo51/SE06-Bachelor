@@ -14,13 +14,19 @@ class PredictionRequest(BaseModel):
         description="Date for the prediction in YYYY-MM-DD format", 
         example="2025-04-25"
     )
+    weights: Optional[Dict[str, float]] = Field(
+        None,
+        description="Optional weights for each model type (xgboost, gru, informer). If not provided, default weights will be used.",
+        example={"xgboost": 0.4, "gru": 0.3, "informer": 0.3}
+    )
 
 class HourlyData(BaseModel):
     """Hourly data for a country as expected by the frontend"""
-    informer: float = Field(..., description="Informer model prediction price")
-    gru: float = Field(..., description="GRU model prediction price")
-    model: float = Field(..., description="Combined model prediction price")
-    actual: float = Field(..., description="Actual price (if available)")
+    informer: float = Field(..., description="Prediction from the Informer model")
+    gru: float = Field(..., description="Prediction from the GRU model")
+    xgboost: float = Field(..., description="Prediction from the XGBoost model")
+    model: float = Field(..., description="Combined model prediction")
+    actual_price: Optional[float] = Field(None, description="Actual price (if available)")
 
 class CountryData(BaseModel):
     """Country data with hourly predictions as expected by the frontend"""
@@ -41,18 +47,14 @@ class FrontendPredictionResponse(BaseModel):
                 "predictionDate": "2025-04-24",
                 "countries": [
                     {
-                        "countryCode": "DE",
-                        "hourlyData": {
-                            "0": {"informer": 45.2, "gru": 44.8, "model": 45.0, "actual": 47.5},
-                            "1": {"informer": 42.8, "gru": 43.1, "model": 42.9, "actual": 44.1},
+                        "countryCode": "DE",                        "hourlyData": {                            "0": {"informer": 45.2, "gru": 44.8, "xgboost": 45.3, "model": 45.0, "actual_price": 47.5},
+                            "1": {"informer": 42.8, "gru": 43.1, "xgboost": 43.0, "model": 42.9, "actual_price": 44.1},
                             # ... other hours
                         }
                     },
                     {
-                        "countryCode": "DK1",
-                        "hourlyData": {
-                            "0": {"informer": 45.2, "gru": 45.5, "model": 45.3, "actual": 45.5},
-                            "1": {"informer": 45.8, "gru": 46.1, "model": 45.9, "actual": 46.1},
+                        "countryCode": "DK1",                        "hourlyData": {                            "0": {"informer": 45.2, "gru": 45.5, "xgboost": 45.4, "model": 45.3, "actual_price": 45.5},
+                            "1": {"informer": 45.8, "gru": 46.1, "xgboost": 45.7, "model": 45.9, "actual_price": 46.1},
                             # ... other hours
                         }
                     }
@@ -63,11 +65,11 @@ class FrontendPredictionResponse(BaseModel):
 # Keep the existing models for internal use
 class HourlyPredictionData(BaseModel):
     """Hourly prediction data with different model results (internal use)"""
-    prediction_model: float = Field(..., description="Prediction from primary model")
     actual_price: Optional[float] = Field(None, description="Actual price (if available)")
-    informer_prediction: float = Field(..., description="Prediction from the Informer model")
-    gru_prediction: float = Field(..., description="Prediction from the GRU model")
-    model_prediction: float = Field(..., description="Combined model prediction")
+    informer: float = Field(..., description="Prediction from the Informer model")
+    gru: float = Field(..., description="Prediction from the GRU model")
+    xgboost: float = Field(..., description="Prediction from the XGBoost model")
+    model: float = Field(..., description="Combined model prediction")
 
 class CountryPredictionData(BaseModel):
     """Prediction data for a single country (internal use)"""
@@ -97,16 +99,13 @@ class PredictionResponse(BaseModel):
         for country_data in self.predictions:
             hourly_data = {}
             for hour, data in country_data.hourly_data.items():
-                # Extract model-specific predictions if available
-                informer_prediction = getattr(data, "informer_prediction", data.prediction_model)
-                gru_prediction = getattr(data, "gru_prediction", data.prediction_model)
-                model_prediction = getattr(data, "model_prediction", data.prediction_model)
-                
+                # Extract model-specific predictions
                 hourly_data[hour] = HourlyData(
-                    informer=informer_prediction,
-                    gru=gru_prediction,
-                    model=model_prediction,
-                    actual=data.actual_price
+                    informer=data.informer,
+                    gru=data.gru,
+                    xgboost=data.xgboost,
+                    model=data.model,
+                    actual_price=data.actual_price
                 )
             
             countries.append(CountryData(
@@ -123,4 +122,5 @@ class HybridModelOutput(BaseModel):
     """Model representing the output from the hybrid price prediction model"""
     informer_prediction: List[float] = Field(..., description="Predictions from the Informer model")
     gru_prediction: List[float] = Field(..., description="Predictions from the GRU model")
+    xgboost_prediction: List[float] = Field(..., description="Predictions from the XGBoost model")
     model_prediction: List[float] = Field(..., description="Combined model predictions")

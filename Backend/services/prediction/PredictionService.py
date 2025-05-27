@@ -18,7 +18,9 @@ class ZonePaths:
     training_data: pathlib.Path
     
     # Model paths
-    regime_dir: pathlib.Path
+    xgboost_dir: pathlib.Path
+    gru_dir: pathlib.Path
+    informer_dir: pathlib.Path
     
     @property
     def prediction_data_str(self) -> str:
@@ -33,22 +35,38 @@ class ZonePaths:
     @property
     def normal_model_path(self) -> str:
         """Get path to normal regime model"""
-        return str(self.regime_dir / "model_normal.pkl")
+        return str(self.xgboost_dir / "model_normal.pkl")
     
     @property
     def spike_model_path(self) -> str:
         """Get path to spike regime model"""
-        return str(self.regime_dir / "model_spike.pkl")
+        return str(self.xgboost_dir / "model_spike.pkl")
+    
+    @property
+    def gru_model_path(self) -> str:
+        """Get path to GRU model"""
+        return str(self.gru_dir / "gru_model.pt")
+    
+    @property
+    def informer_model_path(self) -> str:
+        """Get path to Informer model"""
+        return str(self.informer_dir / "informer_model.pt")
     
     def check_missing_files(self) -> List[str]:
         """Check for missing required model files"""
         missing_files = []
         
+        # Check XGBoost models
         if not os.path.exists(self.normal_model_path):
             missing_files.append(f"normal regime model: {self.normal_model_path}")
         
         if not os.path.exists(self.spike_model_path):
             missing_files.append(f"spike regime model: {self.spike_model_path}")
+            
+        # GRU and Informer models are optional, so we don't check for them
+        # The hybrid model will use whichever models are available
+        
+        return missing_files
             
         return missing_files
 
@@ -77,8 +95,7 @@ class PredictionService:
         
         Returns:
             ZonePaths object with all path configurations for the zone
-        """
-        # Check if we have already computed paths for this zone
+        """        # Check if we have already computed paths for this zone
         if country_code in PredictionService._zone_paths_cache:
             return PredictionService._zone_paths_cache[country_code]
         
@@ -90,12 +107,13 @@ class PredictionService:
             training_data=data_dir / f"{country_code}_full_data_2018_2024.csv",
             
             # Model paths
-            regime_dir=data_dir / "regime_models",
+            xgboost_dir=data_dir / "xgboost",
+            gru_dir=data_dir / "gru",
+            informer_dir=data_dir / "informer",
         )
         
         # Cache the paths for future use
-        PredictionService._zone_paths_cache[country_code] = paths
-        
+        PredictionService._zone_paths_cache[country_code] = paths        
         return paths
     
     def status(self) -> Dict:
@@ -107,7 +125,7 @@ class PredictionService:
         Generate predictions using the hybrid model
         
         Args:
-            request: PredictionRequest with country_codes and date
+            request: PredictionRequest with country_codes, date, and optional weights
             
         Returns:
             PredictionResponse with prediction data for all requested countries
@@ -118,6 +136,15 @@ class PredictionService:
             prediction_date = today.strftime("%Y-%m-%d")
         else:
             prediction_date = request.date
+        
+        # Use weights from request or set default weights
+        weights = request.weights
+        if weights is None:
+            weights = {
+                "xgboost": 0.4,
+                "gru": 0.3,
+                "informer": 0.3
+            }
         
         # Create a dictionary to hold predictions by country code
         country_predictions_dict = {}
@@ -154,7 +181,8 @@ class PredictionService:
                     model_output = hybrid_model.predict_with_hybrid_model(
                         country_code, 
                         prediction_date,
-                        input_file_path=input_file
+                        input_file_path=input_file,
+                        weights=weights
                     )
                 
                 country_predictions_dict[country_code] = self._process_model_results(
@@ -214,10 +242,10 @@ class PredictionService:
         return PredictionResponse(predictions=country_predictions)
     
     def _process_model_results(self, model_output: HybridModelOutput, country_code: str, prediction_date: str) -> CountryPredictionData:
-        """Process model results into the expected format for a country"""
-        # Extract all predictions from model output
+        """Process model results into the expected format for a country"""        # Extract all predictions from model output
         informer_predictions = model_output.informer_prediction
         gru_predictions = model_output.gru_prediction
+        xgboost_predictions = model_output.xgboost_prediction
         model_predictions = model_output.model_prediction
         
         # Create hourly data dictionary
@@ -234,10 +262,10 @@ class PredictionService:
         today = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         is_future_date = prediction_datetime >= today
         
-        for hour in range(num_hours):
-            # Get predictions for this hour from all models
+        for hour in range(num_hours):            # Get predictions for this hour from all models
             informer_value = informer_predictions[hour] if hour < len(informer_predictions) else 0
             gru_value = gru_predictions[hour] if hour < len(gru_predictions) else 0
+            xgboost_value = xgboost_predictions[hour] if hour < len(xgboost_predictions) else 0
             model_value = model_predictions[hour] if hour < len(model_predictions) else 0
             
             # Get actual price if available, otherwise use None for future dates/hours
@@ -249,15 +277,13 @@ class PredictionService:
                 actual_price = actual_prices[hour_str]
             elif not is_future_date:
                 # For past dates with missing actual data, use model prediction with small variance
-                actual_price = model_value * (1 + ((random.random() * 0.1) - 0.05))
-            
-            # Round values for display
+                actual_price = model_value * (1 + ((random.random() * 0.1) - 0.05))            # Round values for display
             hourly_data[hour_str] = HourlyPredictionData(
-                prediction_model=round(model_value, 2),
                 actual_price=round(actual_price, 2) if actual_price is not None else None,
-                informer_prediction=round(informer_value, 2),
-                gru_prediction=round(gru_value, 2),
-                model_prediction=round(model_value, 2)
+                informer=round(informer_value, 2),
+                gru=round(gru_value, 2),
+                xgboost=round(xgboost_value, 2),
+                model=round(model_value, 2)
             )
         
         # Return formatted prediction data for this country
