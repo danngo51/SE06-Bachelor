@@ -34,10 +34,8 @@ const FullMap = () => {
     const [loading, setLoading] = useState(false);
     const [predictionData, setPredictionData] = useState<PredictionDataResponse | null>(null);
     const [showGraphs, setShowGraphs] = useState<boolean>(false);
-    const [selectedDate, setSelectedDate] = useState<string>('');
-    // New state variables to store the prediction info
+    const [selectedDate, setSelectedDate] = useState<string>('');    // New state variables to store the prediction info
     const [predictionCountry, setPredictionCountry] = useState<string>('');
-    const [predictionCountryCode, setPredictionCountryCode] = useState<string>('');
 
     useEffect(() => {
         // Initialize the map only if mapContainerRef.current is not null
@@ -52,8 +50,7 @@ const FullMap = () => {
             // Add the static GeoJSON data to the map
             if (staticGeoJSON) {
                 geojsonLayerRef.current = L.geoJSON(staticGeoJSON, {
-                    style: styleGenerator,
-                    onEachFeature: (feature, layer) =>
+                    style: styleGenerator,                    onEachFeature: (feature, layer) =>
                         addInteractivityLayer(
                             feature,
                             layer,
@@ -68,7 +65,7 @@ const FullMap = () => {
                                 }
                             },
                             map,
-                            drawingRef.current,
+                            drawingRef.current || new L.FeatureGroup(),
                             setHighlightBoolean
                         ),
                 }).addTo(map);
@@ -108,9 +105,7 @@ const FullMap = () => {
         }
     }, [markedArea]); // Log to console whenever markedArea changes
 
-
-
-    const featureProb = async (date: string) => {
+    const featureProb = async (date: string, weights = { gru: 0.0, informer: 0.0, xgboost: 1.0 }) => {
         if (!markedArea || !markedArea.properties) {
             console.error('No country selected for prediction');
             return;
@@ -125,18 +120,25 @@ const FullMap = () => {
         }
         
         console.log(`Prediction requested for ${countryName} (${countryCode || 'XX'}) on date: ${date}`);
-        
-        // Store the selected date and country for the prediction
+          // Store the selected date and country for the prediction
         setSelectedDate(date);
         setPredictionCountry(countryName || 'Unknown Country');
-        setPredictionCountryCode(countryCode || 'XX');
         
         try {
             console.log('Starting to fetch prediction data...');
             setLoading(true);
             
-            // Call our prediction service to fetch the data, use 'XX' as fallback if no country code
-            const data = await fetchPredictionData(countryCode || 'XX', date);
+            // Create the new request object format
+            const requestData = {
+                country_codes: [countryCode || 'XX'],
+                date: date,
+                weights: weights
+            };
+            
+            console.log('Request data being sent:', requestData);
+            
+            // Call our prediction service to fetch the data with the new format
+            const data = await fetchPredictionData(requestData);
             console.log('Raw prediction data received:', data);
             
             // Check the data structure for the new format with multiple countries

@@ -3,7 +3,7 @@ import styles from './FullMapMenu.module.css';
 
 // Define the props type
 interface FullMapMenuProps {
-    featureProb: (date: string) => void; // Modified to accept date parameter
+    featureProb: (date: string, weights?: { gru: number; informer: number; xgboost: number }) => void;
     highlightBoolean: boolean;
     markedArea: GeoJSON.Feature | null; 
 }
@@ -14,6 +14,7 @@ const FullMapMenu = ({
     markedArea
 }: FullMapMenuProps) => {
     const [selectedDate, setSelectedDate] = useState<string>('');
+    const [weights, setWeights] = useState({ gru: 0.0, informer: 0.0, xgboost: 1.0 });
     
     useEffect(() => {
         // Reset selected date when highlight state changes
@@ -24,11 +25,10 @@ const FullMapMenu = ({
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSelectedDate(e.target.value);
     };
-    
-    // Function to handle predict button click
+      // Function to handle predict button click
     const handlePredict = () => {
         if (selectedDate) {
-            featureProb(selectedDate);
+            featureProb(selectedDate, weights);
         }
     };
     
@@ -48,8 +48,7 @@ const FullMapMenu = ({
                         <label className={`${styles.areaNameLabel}`}> 
                             {markedArea ? markedArea.properties?.country : null}
                         </label>
-                        
-                        <div className={styles.datePickerContainer}>
+                          <div className={styles.datePickerContainer}>
                             <label htmlFor="prediction-date" className={styles.dateLabel}>
                                 Select a date to be predicted:
                             </label>
@@ -60,6 +59,48 @@ const FullMapMenu = ({
                                 value={selectedDate}
                                 onChange={handleDateChange}
                             />
+                        </div>
+                        
+                        <div className={styles.weightsContainer}>
+                            <label className={styles.weightsLabel}>Model Weights:</label>
+                            <div className={styles.weightInputs}>
+                                <div className={styles.weightInput}>
+                                    <label htmlFor="gru-weight">GRU:</label>
+                                    <input 
+                                        type="number" 
+                                        id="gru-weight"
+                                        min="0" 
+                                        max="1" 
+                                        step="0.1"
+                                        value={weights.gru}
+                                        onChange={(e) => setWeights({...weights, gru: parseFloat(e.target.value) || 0})}
+                                    />
+                                </div>
+                                <div className={styles.weightInput}>
+                                    <label htmlFor="informer-weight">Informer:</label>
+                                    <input 
+                                        type="number" 
+                                        id="informer-weight"
+                                        min="0" 
+                                        max="1" 
+                                        step="0.1"
+                                        value={weights.informer}
+                                        onChange={(e) => setWeights({...weights, informer: parseFloat(e.target.value) || 0})}
+                                    />
+                                </div>
+                                <div className={styles.weightInput}>
+                                    <label htmlFor="xgboost-weight">XGBoost:</label>
+                                    <input 
+                                        type="number" 
+                                        id="xgboost-weight"
+                                        min="0" 
+                                        max="1" 
+                                        step="0.1"
+                                        value={weights.xgboost}
+                                        onChange={(e) => setWeights({...weights, xgboost: parseFloat(e.target.value) || 0})}
+                                    />
+                                </div>
+                            </div>
                         </div>
                         
                         <button

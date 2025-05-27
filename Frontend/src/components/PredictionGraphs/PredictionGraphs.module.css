@@ -108,8 +108,13 @@
     font-weight: 500;
 }
 
-.modelCombined {
+.modelXGBoost {
     color: #0066CC;
+    font-weight: 500;
+}
+
+.modelCombined {
+    color: #DC143C;
     font-weight: 500;
 }
 

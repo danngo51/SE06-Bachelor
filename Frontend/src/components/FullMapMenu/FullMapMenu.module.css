@@ -92,3 +92,40 @@
     font-size: 16px;
     margin-bottom: 5px;
 }
+
+.weightsContainer {
+    width: 100%;
+    margin: 10px 0;
+}
+
+.weightsLabel {
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.weightInputs {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.weightInput {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.weightInput label {
+    font-size: 12px;
+    flex: 1;
+}
+
+.weightInput input {
+    width: 60px;
+    padding: 4px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 12px;
+}

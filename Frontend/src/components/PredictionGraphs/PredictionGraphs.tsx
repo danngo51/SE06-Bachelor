@@ -109,13 +109,13 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
           <div>
             <button 
               onClick={() => toggleAllGraphs(true)}
-              className={`${styles.smallButton} ${showInformer && showGru && showCombined && showActual ? styles.active : ''}`}
+              className={`${styles.smallButton} ${showInformer && showGru && showXGBoost && showCombined && showActual ? styles.active : ''}`}
             >
               Show All
             </button>
             <button 
               onClick={() => toggleAllGraphs(false)}
-              className={`${styles.smallButton} ${!showInformer && !showGru && !showCombined && !showActual ? styles.active : ''}`}
+              className={`${styles.smallButton} ${!showInformer && !showGru && !showXGBoost && !showCombined && !showActual ? styles.active : ''}`}
             >
               Hide All
             </button>
@@ -129,7 +129,7 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
               checked={showInformer}
               onChange={() => setShowInformer(!showInformer)}
             />
-            <span className={styles.modelInformer}>Informer Model</span>
+            <span className={styles.modelInformer}>Informer</span>
           </label>
           
           <label className={styles.checkboxLabel}>
@@ -138,7 +138,16 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
               checked={showGru}
               onChange={() => setShowGru(!showGru)}
             />
-            <span className={styles.modelGru}>GRU Model</span>
+            <span className={styles.modelGru}>GRU</span>
+          </label>
+
+          <label className={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={showXGBoost}
+              onChange={() => setShowXGBoost(!showXGBoost)}
+            />
+            <span className={styles.modelXGBoost}>XGBoost</span>
           </label>
           
           <label className={styles.checkboxLabel}>
@@ -203,7 +212,7 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
               <Line 
                 type="monotone" 
                 dataKey={PREDICTION_DATA_SERIES.XGBOOST} 
-                stroke="#9D00FF" 
+                stroke="#0066CC" 
                 name="XGBoost"
                 strokeWidth={1.5}
                 dot={{ strokeWidth: 1, r: 2 }}
@@ -214,7 +223,7 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
               <Line 
                 type="monotone" 
                 dataKey={PREDICTION_DATA_SERIES.PREDICTION_MODEL} 
-                stroke="#0066CC" 
+                stroke="#DC143C" 
                 name="Combined Model"
                 strokeWidth={2}
                 dot={{ strokeWidth: 2, r: 3 }}
@@ -248,13 +257,15 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
               />
               <Legend />
               {showInformer && (
-                <Bar dataKey={PREDICTION_DATA_SERIES.INFORMER_MODEL} fill="#FF8C00" name="Informer Model" />
+                <Bar dataKey={PREDICTION_DATA_SERIES.INFORMER_MODEL} fill="#FF8C00" name="Informer" />
               )}
               {showGru && (
-                <Bar dataKey={PREDICTION_DATA_SERIES.GRU_MODEL} fill="#8A2BE2" name="GRU Model" />
+                <Bar dataKey={PREDICTION_DATA_SERIES.GRU_MODEL} fill="#8A2BE2" name="GRU" />
+              )}              {showXGBoost && (
+                <Bar dataKey={PREDICTION_DATA_SERIES.XGBOOST} fill="#0066CC" name="XGBoost" />
               )}
               {showCombined && (
-                <Bar dataKey={PREDICTION_DATA_SERIES.PREDICTION_MODEL} fill="#0066CC" name="Combined Model" />
+                <Bar dataKey={PREDICTION_DATA_SERIES.PREDICTION_MODEL} fill="#DC143C" name="Combined Model" />
               )}
               {showActual && (
                 <Bar dataKey={PREDICTION_DATA_SERIES.ACTUAL_PRICE} fill="#00CC66" name="Actual Price" />
