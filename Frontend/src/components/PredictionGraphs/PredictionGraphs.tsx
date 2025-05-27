@@ -4,7 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, 
   Legend, ResponsiveContainer
 } from 'recharts';
-import { PredictionDataResponse, CountryPredictionData, HourlyPredictionData } from '../../data/predictionTypes';
+import { PredictionDataResponse, HourlyPredictionData } from '../../data/predictionTypes';
 import { PREDICTION_DATA_SERIES } from '../../data/constants';
 import styles from './PredictionGraphs.module.css';
 
