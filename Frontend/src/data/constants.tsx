@@ -7,6 +7,7 @@
 export const PREDICTION_DATA_SERIES = {
   INFORMER_MODEL: 'informer',
   GRU_MODEL: 'gru',
+  XGBOOST: 'xgboost',
   PREDICTION_MODEL: 'model',
   ACTUAL_PRICE: 'actual'
 };

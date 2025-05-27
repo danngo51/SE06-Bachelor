@@ -7,6 +7,7 @@
 export interface HourlyPredictionData {
   informer: number;
   gru: number;
+  xgboost: number;
   model: number;
   actual: number;
 }

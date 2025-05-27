@@ -33,6 +33,7 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
   // Track which models to display with individual toggles
   const [showInformer, setShowInformer] = useState<boolean>(true);
   const [showGru, setShowGru] = useState<boolean>(true);
+  const [showXGBoost, setShowXGBoost] = useState<boolean>(false); // XGBoost is not used in the current implementation
   const [showCombined, setShowCombined] = useState<boolean>(true);
   const [showActual, setShowActual] = useState<boolean>(true);
 
@@ -56,6 +57,7 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
       time: timestamp,
       [PREDICTION_DATA_SERIES.INFORMER_MODEL]: hourData[PREDICTION_DATA_SERIES.INFORMER_MODEL as keyof HourlyPredictionData] || 0,
       [PREDICTION_DATA_SERIES.GRU_MODEL]: hourData[PREDICTION_DATA_SERIES.GRU_MODEL as keyof HourlyPredictionData] || 0,
+      [PREDICTION_DATA_SERIES.XGBOOST]: hourData[PREDICTION_DATA_SERIES.XGBOOST as keyof HourlyPredictionData] || 0,
       [PREDICTION_DATA_SERIES.PREDICTION_MODEL]: hourData[PREDICTION_DATA_SERIES.PREDICTION_MODEL as keyof HourlyPredictionData] || 0,
       [PREDICTION_DATA_SERIES.ACTUAL_PRICE]: hourData[PREDICTION_DATA_SERIES.ACTUAL_PRICE as keyof HourlyPredictionData] || 0,
       hour: hourNum
@@ -66,6 +68,7 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
   const toggleAllGraphs = (show: boolean) => {
     setShowInformer(show);
     setShowGru(show);
+    setShowXGBoost(show);
     setShowCombined(show);
     setShowActual(show);
   };
@@ -164,59 +167,70 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
-                dataKey="hour" 
-                tick={{ fontSize: 12 }}
-                label={{ value: 'Hour of day', position: 'insideBottom', offset: -5 }}
+              dataKey="hour" 
+              tick={{ fontSize: 12 }}
+              label={{ value: 'Hour of day', position: 'insideBottom', offset: -5 }}
               />
               <YAxis label={{ value: 'Price', angle: -90, position: 'insideLeft' }} />
               <Tooltip 
-                formatter={(value) => (typeof value === 'number' ? [`${value.toFixed(2)}`, ''] : [value, ''])}
-                labelFormatter={(hour) => `Hour: ${hour}:00`}
+              formatter={(value) => (typeof value === 'number' ? [`${value.toFixed(2)}`, ''] : [value, ''])}
+              labelFormatter={(hour) => `Hour: ${hour}:00`}
               />
               <Legend />
               {showInformer && (
-                <Line 
-                  type="monotone" 
-                  dataKey={PREDICTION_DATA_SERIES.INFORMER_MODEL} 
-                  stroke="#FF8C00" 
-                  name="Informer Model"
-                  strokeWidth={1.5}
-                  dot={{ strokeWidth: 1, r: 2 }}
-                  activeDot={{ r: 6 }} 
-                />
+              <Line 
+                type="monotone" 
+                dataKey={PREDICTION_DATA_SERIES.INFORMER_MODEL} 
+                stroke="#FF8C00" 
+                name="Informer"
+                strokeWidth={1.5}
+                dot={{ strokeWidth: 1, r: 2 }}
+                activeDot={{ r: 6 }} 
+              />
               )}
               {showGru && (
-                <Line 
-                  type="monotone" 
-                  dataKey={PREDICTION_DATA_SERIES.GRU_MODEL} 
-                  stroke="#8A2BE2" 
-                  name="GRU Model"
-                  strokeWidth={1.5}
-                  dot={{ strokeWidth: 1, r: 2 }}
-                  activeDot={{ r: 6 }} 
-                />
+              <Line 
+                type="monotone" 
+                dataKey={PREDICTION_DATA_SERIES.GRU_MODEL} 
+                stroke="#8A2BE2" 
+                name="GRU"
+                strokeWidth={1.5}
+                dot={{ strokeWidth: 1, r: 2 }}
+                activeDot={{ r: 6 }} 
+              />
+              )}
+              {showXGBoost && (
+              <Line 
+                type="monotone" 
+                dataKey={PREDICTION_DATA_SERIES.XGBOOST} 
+                stroke="#9D00FF" 
+                name="XGBoost"
+                strokeWidth={1.5}
+                dot={{ strokeWidth: 1, r: 2 }}
+                activeDot={{ r: 6 }} 
+              />
               )}
               {showCombined && (
-                <Line 
-                  type="monotone" 
-                  dataKey={PREDICTION_DATA_SERIES.PREDICTION_MODEL} 
-                  stroke="#0066CC" 
-                  name="Combined Model"
-                  strokeWidth={2}
-                  dot={{ strokeWidth: 2, r: 3 }}
-                  activeDot={{ r: 8 }} 
-                />
+              <Line 
+                type="monotone" 
+                dataKey={PREDICTION_DATA_SERIES.PREDICTION_MODEL} 
+                stroke="#0066CC" 
+                name="Combined Model"
+                strokeWidth={2}
+                dot={{ strokeWidth: 2, r: 3 }}
+                activeDot={{ r: 8 }} 
+              />
               )}
               {showActual && (
-                <Line 
-                  type="monotone" 
-                  dataKey={PREDICTION_DATA_SERIES.ACTUAL_PRICE} 
-                  stroke="#00CC66" 
-                  name="Actual Price"
-                  strokeWidth={2}
-                  dot={{ strokeWidth: 2, r: 3 }}
-                  activeDot={{ r: 8 }} 
-                />
+              <Line 
+                type="monotone" 
+                dataKey={PREDICTION_DATA_SERIES.ACTUAL_PRICE} 
+                stroke="#00CC66" 
+                name="Actual Price"
+                strokeWidth={2}
+                dot={{ strokeWidth: 2, r: 3 }}
+                activeDot={{ r: 8 }} 
+              />
               )}
             </LineChart>
           ) : (
