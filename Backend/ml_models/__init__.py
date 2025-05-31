@@ -6,7 +6,7 @@ This package contains the pipeline-based machine learning models used for electr
 from ml_models.XGBoost import XGBoostPipeline
 from ml_models.GRU import GRUPipeline
 from ml_models.Informer import InformerPipeline
-from ml_models.hybrid_model import HybridModel
+from ml_models.Hybrid_Model import HybridModel
 
 __version__ = "1.0.0"
 
