@@ -5,10 +5,10 @@ import joblib
 import pathlib
 from typing import Dict, Any, Optional, Union, List, Tuple
 
-from interfaces.base_pipeline import ModelPipeline
+from Backend.interfaces.ModelPipelineInterface import IModelPipeline
 from ml_models.XGBoost.XGBoost_model import XGBoostRegimeModel
 
-class XGBoostPipeline(ModelPipeline):
+class XGBoostPipeline(IModelPipeline):
     """
     Pipeline for the XGBoost regime-based model.
     Handles preprocessing, model loading, and prediction.

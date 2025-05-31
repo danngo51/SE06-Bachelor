@@ -6,7 +6,7 @@ import numpy as np
 import joblib
 from abc import ABC, abstractmethod
 
-class ModelPipeline(ABC):
+class IModelPipeline(ABC):
     """
     Abstract base class for model pipelines.
     All model pipelines should inherit from this class and implement its methods.

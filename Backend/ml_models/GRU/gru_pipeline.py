@@ -10,10 +10,10 @@ import joblib
 from typing import Dict, Any, Optional, Union, List, Tuple
 from sklearn.preprocessing import StandardScaler
 
-from interfaces.base_pipeline import ModelPipeline
+from Backend.interfaces.ModelPipelineInterface import IModelPipeline
 from ml_models.GRU.GRU_model import GRUModel
 
-class GRUPipeline(ModelPipeline):
+class GRUPipeline(IModelPipeline):
     """
     Fixed GRU Pipeline with support for multiple file formats
     """

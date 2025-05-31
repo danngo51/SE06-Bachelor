@@ -7,10 +7,10 @@ import pathlib
 import joblib
 from typing import Dict, Any, Optional, Union, List, Tuple
 
-from interfaces.base_pipeline import ModelPipeline
+from Backend.interfaces.ModelPipelineInterface import IModelPipeline
 from ml_models.Informer.Informer_model import Informer, TimeSeriesDataset, InformerModelTrainer
 
-class InformerPipeline(ModelPipeline):
+class InformerPipeline(IModelPipeline):
     """
     Pipeline for the Informer model.
     Handles preprocessing, model loading, and prediction.
