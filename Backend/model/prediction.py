@@ -6,8 +6,8 @@ class PredictionRequest(BaseModel):
     """Request model for prediction endpoints"""
     country_codes: List[str] = Field(
         ..., 
-        description="List of ISO country codes to get predictions for", 
-        example=["DK", "DE", "SE"]
+        description="List of country codes to get predictions for", 
+        example=["DK1", "DE_LU", "SE1"]
     )
     date: Optional[str] = Field(
         None, 
