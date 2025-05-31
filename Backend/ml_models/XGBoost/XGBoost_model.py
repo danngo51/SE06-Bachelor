@@ -5,25 +5,10 @@ import joblib
 import xgboost as xgb
 import pathlib
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
 class XGBoostRegimeModel:
-    """
-    XGBoost model with regime-switching capability for electricity price forecasting.
-    Uses separate models for normal and spike price regimes based on lagged price values.
-    
-    This is the consolidated implementation that uses the regime-based approach,
-    which provides better performance by handling price spikes separately.
-    """
-    
     def __init__(self, mapcode="DK1", threshold_percentile=0.90):
-        """
-        Initialize the regime-based XGBoost model.
-        
-        Args:
-            mapcode: String code for the market area (e.g., "DK1")
-            threshold_percentile: Percentile threshold for defining price spikes (default: 0.90)
-        """
         self.mapcode = mapcode
         self.threshold_percentile = threshold_percentile
         self.threshold = None
@@ -41,16 +26,6 @@ class XGBoostRegimeModel:
         os.makedirs(self.xgboost_dir, exist_ok=True)
     
     def _engineer_features(self, df):
-        """
-        Add engineered features to match the training data.
-        Features adapt to available columns in the dataset.
-        
-        Args:
-            df: DataFrame with raw data
-            
-        Returns:
-            DataFrame with engineered features
-        """
         # Create a copy to avoid modifying the original data
         df = df.copy()
         
@@ -144,13 +119,6 @@ class XGBoostRegimeModel:
         return df.dropna()
     
     def train(self, training_file, xgb_params=None):
-        """
-        Train separate models for normal and spike regimes.
-        
-        Args:
-            training_file: CSV file with training data
-            xgb_params: Parameters for XGBoost model (optional)
-        """
         # Default XGBoost parameters if none provided
         if xgb_params is None:
             xgb_params = {
@@ -205,19 +173,43 @@ class XGBoostRegimeModel:
         norm_rmse = np.sqrt(mean_squared_error(yn_te, norm_preds))
         spike_rmse = np.sqrt(mean_squared_error(ys_te, spike_preds))
         
+        norm_mae = mean_absolute_error(yn_te, norm_preds)
+        spike_mae = mean_absolute_error(ys_te, spike_preds)
+        
+        non_zero_mask = yn_te != 0
+        norm_mape = np.mean(np.abs((yn_te[non_zero_mask] - norm_preds[non_zero_mask]) / yn_te[non_zero_mask])) * 100
+        spike_mape = np.mean(np.abs((ys_te - spike_preds) / ys_te)) * 100
+        
         norm_r2 = r2_score(yn_te, norm_preds)
         spike_r2 = r2_score(ys_te, spike_preds)
         
-        print(f"Normal regime - RMSE: {norm_rmse:.2f}, R²: {norm_r2:.4f}")
-        print(f"Spike regime - RMSE: {spike_rmse:.2f}, R²: {spike_r2:.4f}")
+        print(f"Normal regime - RMSE: {norm_rmse:.2f}, MAE: {norm_mae:.2f}, MAPE: {norm_mape:.2f}%, R²: {norm_r2:.4f}")
+        print(f"Spike regime - RMSE: {spike_rmse:.2f}, MAE: {spike_mae:.2f}, MAPE: {spike_mape:.2f}%, R²: {spike_r2:.4f}")
+        
+        # Save metrics to CSV
+        metrics_file = os.path.join(self.xgboost_dir, 'metrics.csv')
+        metrics_data = {
+            'Regime': ['Normal', 'Spike'],
+            'RMSE': [norm_rmse, spike_rmse],
+            'MAE': [norm_mae, spike_mae],
+            'MAPE (%)': [norm_mape, spike_mape],
+            'R²': [norm_r2, spike_r2]
+        }
+        metrics_df = pd.DataFrame(metrics_data)
+        metrics_df.to_csv(metrics_file, index=False)
+        print(f"Metrics saved to {metrics_file}")
         
         # Save models
         self.save_models()
         
         return {
             'normal_rmse': norm_rmse,
+            'normal_mae': norm_mae,
+            'normal_mape': norm_mape,
             'normal_r2': norm_r2,
             'spike_rmse': spike_rmse,
+            'spike_mae': spike_mae,
+            'spike_mape': spike_mape,
             'spike_r2': spike_r2
         }
     
@@ -263,16 +255,6 @@ class XGBoostRegimeModel:
             return False
     
     def predict(self, forecast_file, output_date=None):
-        """
-        Make predictions using the regime-based model.
-        
-        Args:
-            forecast_file: CSV file with forecast data
-            output_date: Date string for filtering and naming output file (optional)
-            
-        Returns:
-            DataFrame with predictions
-        """
         if self.model_normal is None or self.model_spike is None:
             if not self.load_models():
                 raise ValueError("Models not trained or loaded")
@@ -314,42 +296,3 @@ class XGBoostRegimeModel:
         
         return df[['date', 'hour', 'True', 'Predicted', 'Pct_of_True']]
 
-'''
-# Example usage
-if __name__ == "__main__":
-    # Training example
-    # model = XGBoostRegimeModel(mapcode="DK1")
-    # model.train(training_file="DK1_full_data_2018_2024.csv")
-    
-    # Prediction example
-    model = XGBoostRegimeModel(mapcode="DK1")
-    results = model.predict(
-        forecast_file="DK1_full_data_2025.csv",
-        output_date="2025-03-01"
-    )
-    print(results)
-'''
-"""
-NOTES:
------
-This consolidated XGBoostRegimeModel is the preferred implementation for electricity price forecasting.
-It uses a regime-switching approach that handles price spikes more effectively.
-
-Key components:
-1. The model maintains two separate XGBoost models:
-   - One for normal pricing conditions
-   - One for price spike conditions (defined as prices above the 90th percentile)
-
-2. The regime is determined by the 1-hour lagged price value (EP_lag_1), 
-   allowing the model to anticipate price spikes.
-
-3. Feature engineering includes:
-   - Cyclical hour encoding (sin/cos)
-   - Rolling price and load statistics
-   - Gas-load interaction term
-   
-4. The model automatically saves both sub-models to the regime_models directory.
-
-The original implementation was based on XGBoost_regime_model.py and XGB_forecast_regime.py,
-but has been consolidated into this single class for easier maintenance and use.
-"""

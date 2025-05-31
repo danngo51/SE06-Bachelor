@@ -7,7 +7,7 @@ import pathlib
 import joblib
 from typing import Dict, Any, Optional, Union, List, Tuple
 
-from Backend.interfaces.ModelPipelineInterface import IModelPipeline
+from interfaces.ModelPipelineInterface import IModelPipeline
 from ml_models.Informer.Informer_model import Informer, TimeSeriesDataset, InformerModelTrainer
 
 class InformerPipeline(IModelPipeline):
