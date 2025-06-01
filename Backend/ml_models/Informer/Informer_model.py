@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import pathlib
 import joblib
 
@@ -119,9 +119,7 @@ class InformerModelTrainer:
         val_loader = DataLoader(val_set, batch_size=self.batch_size, shuffle=False)
         test_loader = DataLoader(test_set, batch_size=self.batch_size, shuffle=False)
         model = Informer(input_dim=len(feature_cols), seq_len=self.seq_len, label_len=self.label_len, pred_len=self.pred_len).to(self.device)
-
-        # Change loss function to MAE
-        criterion = nn.L1Loss()
+        criterion = nn.MSELoss()
         optimizer = optim.Adam(model.parameters(), lr=self.learning_rate, weight_decay=1e-4)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=2)
         best_val, wait = float('inf'), 0
@@ -141,7 +139,7 @@ class InformerModelTrainer:
             ) / len(val_loader)
             val_losses.append(val_loss)
             scheduler.step(val_loss)
-            print(f"Epoch {epoch}/{self.epochs} - Train MAE: {train_loss:.4f}, Val MAE: {val_loss:.4f}")
+            print(f"Epoch {epoch}/{self.epochs} - Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
 
             if val_loss < best_val:
                 best_val, wait = val_loss, 0
@@ -165,7 +163,7 @@ class InformerModelTrainer:
                 all_preds.append(out[:, -self.pred_len:].cpu().numpy())
                 all_targs.append(dec_y[:, -self.pred_len:].cpu().numpy())
         test_loss /= len(test_loader)
-        print(f"Test MAE: {test_loss:.4f}")
+        print(f"Test Loss: {test_loss:.4f}")
 
         all_preds = np.vstack(all_preds)
         all_targs = np.vstack(all_targs)
@@ -173,13 +171,15 @@ class InformerModelTrainer:
         std = np.sqrt(var)
         real_preds = all_preds * std + mean
         real_targs = all_targs * std + mean
+        mse = mean_squared_error(real_targs.flatten(), real_preds.flatten())
+        rmse = np.sqrt(mse)
         mae = mean_absolute_error(real_targs.flatten(), real_preds.flatten())
         r2 = r2_score(real_targs.flatten(), real_preds.flatten())
-        metrics_data = {'Metric': ['MAE', 'R²'], 'Value': [mae, r2]}
+        metrics_data = {'Metric': ['RMSE', 'MAE', 'R²'], 'Value': [rmse, mae, r2]}
         pd.DataFrame(metrics_data).to_csv(self.informer_dir / "metrics.csv", index=False)
 
         return {
             "model_path": str(self.informer_dir / 'best_informer.pt'),
             "scaler_path": str(self.informer_dir / 'scaler.pkl'),
-            "metrics": {"mae": mae, "r2": r2}
+            "metrics": {"mse": mse, "rmse": rmse, "mae": mae, "r2": r2}
         }
