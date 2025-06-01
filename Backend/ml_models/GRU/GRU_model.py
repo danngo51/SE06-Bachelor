@@ -158,19 +158,35 @@ class GRUModelTrainer:
         # Load the best model
         self.model.load_state_dict(torch.load(str(self.gru_dir / "best_gru_model.pth"), map_location=self.device))
 
-        # Evaluate on test data
+         # Evaluate on test data
         test_loss = 0.0
+        all_predictions, all_targets = [], []
         with torch.no_grad():
             for batch_sequences, batch_targets in test_loader:
                 batch_sequences, batch_targets = batch_sequences.to(self.device), batch_targets.to(self.device)
                 outputs = self.model(batch_sequences)
                 loss = criterion(outputs, batch_targets)
                 test_loss += loss.item()
+                all_predictions.append(outputs.cpu().numpy())
+                all_targets.append(batch_targets.cpu().numpy())
         test_loss /= len(test_loader)
-        print(f"Test Loss: {test_loss:.4f}")
+
+        # Rescale predictions and targets
+        all_predictions = np.vstack(all_predictions)
+        all_targets = np.vstack(all_targets)
+        all_predictions = self.scaler_target.inverse_transform(all_predictions)
+        all_targets = self.scaler_target.inverse_transform(all_targets)
+
+        # Calculate metrics
+        mse = mean_squared_error(all_targets.flatten(), all_predictions.flatten())
+        rmse = np.sqrt(mse)
+        mae = mean_absolute_error(all_targets.flatten(), all_predictions.flatten())
+        r2 = r2_score(all_targets.flatten(), all_predictions.flatten())
+
+        print(f"Test Loss: {test_loss:.4f}, RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}")
 
         # Save metrics
-        metrics_data = {'Metric': ['Train Loss', 'Val Loss', 'Test Loss'], 'Value': [train_loss, val_loss, test_loss]}
+        metrics_data = {'Metric': ['RMSE', 'MAE', 'R²'], 'Value': [rmse, mae, r2]}
         pd.DataFrame(metrics_data).to_csv(self.gru_dir / "metrics.csv", index=False)
 
     def predict(self, data):
