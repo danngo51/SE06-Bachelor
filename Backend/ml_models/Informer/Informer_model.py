@@ -6,10 +6,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import pathlib
 import joblib
-
 
 class DataEmbedding(nn.Module):
     def __init__(self, input_dim, d_model, seq_len=168, pred_len=24):
@@ -22,9 +21,8 @@ class DataEmbedding(nn.Module):
         pos = torch.arange(x.size(1), device=x.device).unsqueeze(0)
         return self.dropout(self.value_emb(x) + self.pos_emb(pos))
 
-
 class Informer(nn.Module):
-    def __init__(self, input_dim, d_model=256, n_heads=8, e_layers=2, d_layers=1, dropout=0.2, seq_len=168, label_len=48, pred_len=24):
+    def __init__(self, input_dim, d_model=256, n_heads=4, e_layers=2, d_layers=1, dropout=0.2, seq_len=168, label_len=48, pred_len=24):
         super().__init__()
         self.enc_emb = DataEmbedding(input_dim, d_model, seq_len, pred_len)
         self.dec_emb = DataEmbedding(1, d_model, seq_len, pred_len)
@@ -48,7 +46,6 @@ class Informer(nn.Module):
         dec_out = self.decoder(self.dec_emb(dec_y.unsqueeze(-1)), enc_out)
         return self.proj(dec_out).squeeze(-1)
 
-
 class TimeSeriesDataset(Dataset):
     def __init__(self, df, feature_cols, target_col, seq_len, label_len, pred_len, scaler=None):
         self.seq_len = seq_len
@@ -71,7 +68,6 @@ class TimeSeriesDataset(Dataset):
         enc_x, dec_y = self.samples[idx]
         return {'enc_x': torch.from_numpy(enc_x), 'dec_y': torch.from_numpy(dec_y)}
 
-
 class InformerModelTrainer:
     def __init__(self, mapcode="DK1", seq_len=168, label_len=48, 
                 pred_len=24, batch_size=32, learning_rate=1e-4,
@@ -90,25 +86,13 @@ class InformerModelTrainer:
         self.project_root = current_file.parent.parent
         self.data_dir = self.project_root / "data" / self.mapcode
         self.informer_dir = self.data_dir / "informer"
-        self.feature_file = self.data_dir / "feature" / "features.csv"
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.informer_dir, exist_ok=True)
 
     def train(self, data_path=None):
         data_path = data_path or self.data_dir / f"{self.mapcode}_full_data_2018_2024.csv"
         df = pd.read_csv(data_path, parse_dates=['date'], index_col='date').dropna()
-
-        # Load top features from features.csv
-        if not self.feature_file.exists():
-            raise FileNotFoundError(f"Feature file not found: {self.feature_file}")
-        feature_cols = pd.read_csv(self.feature_file)['Feature'].tolist()
-
-        # Ensure the dataset includes 'date', top features, and target column
-        required_cols = ['date'] + feature_cols + ['Electricity_price_MWh']
-        missing_cols = [col for col in required_cols if col not in df.columns]
-        if missing_cols:
-            raise ValueError(f"Missing required columns in dataset: {missing_cols}")
-
+        feature_cols = [c for c in df.columns if c != 'Electricity_price_MWh']
         target_col = 'Electricity_price_MWh'
         train_df = df.loc['2018-01-01':'2022-12-31']
         val_df = df.loc['2023-01-01':'2023-12-31']
@@ -176,13 +160,13 @@ class InformerModelTrainer:
         real_targs = all_targs * std + mean
         mse = mean_squared_error(real_targs.flatten(), real_preds.flatten())
         rmse = np.sqrt(mse)
-        mape = np.mean(np.abs((real_targs.flatten() - real_preds.flatten()) / real_targs.flatten())) * 100
+        mae = mean_absolute_error(real_targs.flatten(), predictions.flatten())
         r2 = r2_score(real_targs.flatten(), real_preds.flatten())
-        metrics_data = {'Metric': ['RMSE', 'MAPE', 'R²'], 'Value': [rmse, mape, r2]}
+        metrics_data = {'Metric': ['RMSE', 'MAE', 'R²'], 'Value': [rmse, mae, r2]}
         pd.DataFrame(metrics_data).to_csv(self.informer_dir / "metrics.csv", index=False)
 
         return {
             "model_path": str(self.informer_dir / 'best_informer.pt'),
             "scaler_path": str(self.informer_dir / 'scaler.pkl'),
-            "metrics": {"mse": mse, "rmse": rmse, "mape": mape, "r2": r2}
+            "metrics": {"mse": mse, "rmse": rmse, "mae": mae, "r2": r2}
         }
