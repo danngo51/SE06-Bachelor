@@ -191,7 +191,7 @@ class HybridModel:
             if informer_name in self.pipelines:
                 informer_pipeline = self.pipelines[informer_name]
                 try:
-                    informer_result = informer_pipeline.predict_from_file(input_file_path, prediction_date)
+                    informer_result = informer_pipeline.predict(input_file_path, prediction_date)
                     informer_predictions = informer_result['Predicted'].tolist()
                 except Exception as e:
                     print(f"Error getting Informer predictions: {e}")

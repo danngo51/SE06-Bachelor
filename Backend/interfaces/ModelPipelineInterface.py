@@ -47,13 +47,4 @@ class IModelPipeline(ABC):
             model_path: Path to saved model file
         """
         pass
-    
-    @abstractmethod
-    def get_model_info(self) -> Dict[str, Any]:
-        """
-        Get information about the model.
-        
-        Returns:
-            Dictionary with model information
-        """
-        pass
+

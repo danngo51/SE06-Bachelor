@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import pathlib
 import joblib
-from typing import Dict, Optional, Union, Tuple
+from typing import Dict, List, Optional, Union, Tuple
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 from interfaces.ModelPipelineInterface import IModelPipeline
@@ -61,16 +61,25 @@ class InformerPipeline(IModelPipeline):
 
         return df.dropna()
 
-    def predict(self, data: pd.DataFrame) -> pd.Series:
-        if self.model is None:
-            raise ValueError("Model not loaded. Call load_model() first.")
+    def predict(self, data: pd.DataFrame, prediction_date: str) -> pd.Series:
+        if self.model is None or self.scaler is None:
+            self.load_model()
 
-        informer_tensor, feature_cols = self._prepare_informer_data(data)
+        prediction_date = pd.to_datetime(prediction_date)
+        if prediction_date not in data['date'].values:
+            raise ValueError(f"Prediction date {prediction_date} not found in the input data.")
+
+        historical_data = data[data['date'] < prediction_date].tail(self.seq_len)
+
+        if len(historical_data) < self.seq_len:
+            raise ValueError(f"Insufficient data for prediction. Expected at least {self.seq_len} rows.")
+
+        informer_tensor, feature_cols = self._prepare_informer_data(historical_data)
         self.model.eval()
 
         dec_inp = torch.zeros((1, self.label_len + self.pred_len), device=self.device)
-        if 'Electricity_price_MWh' in data.columns and len(data) >= self.label_len and self.label_len > 0:
-            target_data = data['Electricity_price_MWh'].values[-self.label_len:]
+        if 'Electricity_price_MWh' in historical_data.columns and len(historical_data) >= self.label_len and self.label_len > 0:
+            target_data = historical_data['Electricity_price_MWh'].values[-self.label_len:]
             if self.scaler is not None:
                 target_mean, target_std = self.scaler.mean_[-1], np.sqrt(self.scaler.var_[-1])
                 target_data = (target_data - target_mean) / target_std
@@ -85,15 +94,16 @@ class InformerPipeline(IModelPipeline):
             target_mean, target_std = self.scaler.mean_[-1], np.sqrt(self.scaler.var_[-1])
             predictions = predictions * target_std + target_mean
 
-        return pd.Series(predictions, name='Predicted')
+        # Create a Series for the next 24 hours
+        prediction_dates = pd.date_range(start=prediction_date, periods=self.pred_len, freq='H')
+        return pd.Series(predictions, index=prediction_dates, name='Predicted')
 
     def load_model(self, model_path: Optional[str] = None) -> bool:
         informer_dir = pathlib.Path(model_path) if model_path else self.informer_dir
 
         try:
-            model_path = str(informer_dir / "informer_model.pt")
+            model_path = str(informer_dir / "best_informer.pt")
             scaler_path = str(informer_dir / "scaler.pkl")
-            feature_cols_path = str(informer_dir / "feature_columns.pkl")
 
             if not os.path.exists(model_path):
                 raise FileNotFoundError(f"Informer model file not found: {model_path}")
@@ -103,9 +113,6 @@ class InformerPipeline(IModelPipeline):
 
             if os.path.exists(scaler_path):
                 self.scaler = joblib.load(scaler_path)
-
-            if os.path.exists(feature_cols_path):
-                self.training_feature_cols = joblib.load(feature_cols_path)
 
             return True
         except Exception as e:
@@ -156,3 +163,21 @@ class InformerPipeline(IModelPipeline):
         except Exception as e:
             print(f"Error evaluating Informer model: {e}")
             return {}
+        
+    def _prepare_informer_data(self, historical_data: pd.DataFrame) -> Tuple[torch.Tensor, List[str]]:
+        if self.training_feature_cols is None:
+            raise ValueError("Training feature columns are not defined. Ensure the model is trained first.")
+
+        feature_cols = [col for col in self.training_feature_cols if col in historical_data.columns]
+        if not feature_cols:
+            raise ValueError("No matching feature columns found in the historical data.")
+
+        # Extract features and scale them
+        features = historical_data[feature_cols].values.astype(np.float32)
+        if self.scaler is not None:
+            features = self.scaler.transform(features)
+
+        # Convert features to PyTorch tensor
+        informer_tensor = torch.tensor(features, dtype=torch.float32).unsqueeze(0)
+
+        return informer_tensor, feature_cols
