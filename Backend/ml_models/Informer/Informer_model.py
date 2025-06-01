@@ -102,7 +102,7 @@ class InformerModelTrainer:
         real_targs = all_targs * std + mean
         mse = mean_squared_error(real_targs.flatten(), real_preds.flatten())
         rmse = np.sqrt(mse)
-        mae = mean_absolute_error(real_targs.flatten(), predictions.flatten())
+        mae = mean_absolute_error(real_targs.flatten(), real_preds.flatten())
         r2 = r2_score(real_targs.flatten(), real_preds.flatten())
         metrics_data = {'Metric': ['RMSE', 'MAE', 'R²'], 'Value': [rmse, mae, r2]}
         pd.DataFrame(metrics_data).to_csv(self.informer_dir / "metrics.csv", index=False)
