@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score
 import pathlib
 import joblib
 
@@ -173,13 +173,12 @@ class InformerModelTrainer:
         real_targs = all_targs * std + mean
         mse = mean_squared_error(real_targs.flatten(), real_preds.flatten())
         rmse = np.sqrt(mse)
-        mae = mean_absolute_error(real_targs.flatten(), real_preds.flatten())
         r2 = r2_score(real_targs.flatten(), real_preds.flatten())
-        metrics_data = {'Metric': ['RMSE', 'MAE', 'R²'], 'Value': [rmse, mae, r2]}
+        metrics_data = {'Metric': ['RMSE', 'R²'], 'Value': [rmse, r2]}
         pd.DataFrame(metrics_data).to_csv(self.informer_dir / "metrics.csv", index=False)
 
         return {
             "model_path": str(self.informer_dir / 'best_informer.pt'),
             "scaler_path": str(self.informer_dir / 'scaler.pkl'),
-            "metrics": {"mse": mse, "rmse": rmse, "mae": mae, "r2": r2}
+            "metrics": {"mse": mse, "rmse": rmse, "r2": r2}
         }
