@@ -53,8 +53,8 @@ def train_informer(country_code):
         label_len=48,
         pred_len=24,
         batch_size=32,
-        learning_rate=1e-4,
-        epochs=50,
+        learning_rate=0.0005,
+        epochs=100,
         early_stop_patience=10
     )
     training_file = f"{country_code}_full_data_2018_2024.csv"

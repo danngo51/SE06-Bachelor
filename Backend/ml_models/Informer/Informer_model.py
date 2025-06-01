@@ -22,7 +22,8 @@ class DataEmbedding(nn.Module):
         return self.dropout(self.value_emb(x) + self.pos_emb(pos))
 
 class Informer(nn.Module):
-    def __init__(self, input_dim, d_model=256, n_heads=4, e_layers=2, d_layers=1, dropout=0.2, seq_len=168, label_len=48, pred_len=24):
+    # def __init__(self, input_dim, d_model=256, n_heads=4, e_layers=2, d_layers=1, dropout=0.2, seq_len=168, label_len=48, pred_len=24):
+    def __init__(self, input_dim, d_model=512, n_heads=8, e_layers=3, d_layers=2, dropout=0.2, seq_len=168, label_len=48, pred_len=24):
         super().__init__()
         self.enc_emb = DataEmbedding(input_dim, d_model, seq_len, pred_len)
         self.dec_emb = DataEmbedding(1, d_model, seq_len, pred_len)
