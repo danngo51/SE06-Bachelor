@@ -3,7 +3,8 @@ import pandas as pd
 import numpy as np
 import joblib
 import pathlib
-from typing import Dict, Any, Optional
+from typing import Dict, Optional
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 from interfaces.ModelPipelineInterface import IModelPipeline
 from ml_models.XGBoost.XGBoost_model import XGBoostRegimeModel

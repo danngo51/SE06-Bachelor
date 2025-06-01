@@ -9,7 +9,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import pathlib
 import joblib
-import matplotlib.pyplot as plt
 
 class GRUModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_layers, output_dim, bidirectional=False):
@@ -107,6 +106,24 @@ class GRUModelTrainer:
                 optimizer.step()
                 train_loss += loss.item()
             train_losses.append(train_loss / len(train_loader))
+
+        # Evaluate the model on the training data
+        self.model.eval()
+        with torch.no_grad():
+            predictions = self.model(torch.FloatTensor(train_sequences).to(self.device)).cpu().numpy()
+        predictions = self.scaler_target.inverse_transform(predictions)
+        train_targets = self.scaler_target.inverse_transform(train_targets)
+
+        # Calculate metrics
+        mse = mean_squared_error(train_targets.flatten(), predictions.flatten())
+        rmse = np.sqrt(mse)
+        mae = mean_absolute_error(train_targets.flatten(), predictions.flatten())
+        r2 = r2_score(train_targets.flatten(), predictions.flatten())
+
+        # Save metrics to CSV
+        metrics_data = {'Metric': ['RMSE', 'MAE', 'R²'], 'Value': [rmse, mae, r2]}
+        pd.DataFrame(metrics_data).to_csv(self.gru_dir / "metrics.csv", index=False)
+
         return train_losses
 
     def predict(self, data):
