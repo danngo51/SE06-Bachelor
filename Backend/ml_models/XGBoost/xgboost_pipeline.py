@@ -23,38 +23,7 @@ class XGBoostPipeline(IModelPipeline):
         self.xgboost_dir = self.data_dir / "xgboost"
 
     def preprocess(self, data: pd.DataFrame) -> pd.DataFrame:
-        df = data.copy()
-
-        if 'hour' not in df.columns:
-            raise ValueError("Required column 'hour' not found in data")
-
-        df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
-        df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
-
-        if 'Electricity_price_MWh' in df.columns:
-            df['price_roll_3h'] = df['Electricity_price_MWh'].shift(1).rolling(3, min_periods=1).mean()
-            df['EP_lag_1'] = df['Electricity_price_MWh'].shift(1)
-
-        load_columns = ['DAHTL_TotalLoadValue', 'TotalLoadValue', 'Load_Value', 'Total_Load', 'DALoadValue', 'SystemLoad']
-        load_col = next((col for col in load_columns if col in df.columns), None)
-        if load_col:
-            df['load_roll_6h'] = df[load_col].shift(1).rolling(6, min_periods=1).mean()
-
-        gas_columns = ['Natural_Gas_price_EUR', 'Gas_Price']
-        gas_col = next((col for col in gas_columns if col in df.columns), None)
-        if gas_col and load_col:
-            df['gas_x_load'] = df[gas_col] * df[load_col]
-
-        required_fossil_cols = ['Fossil_Hard_coal_Capacity', 'Fossil_Hard_coal_Output', 'Fossil_Hard_coal_Utilization']
-        for col in required_fossil_cols:
-            if col not in df.columns:
-                df[col] = 0
-
-        ftc_cols = [col for col in df.columns if col.startswith('ftc_')]
-        if not ftc_cols and self.mapcode in ["DK1", "DK2"]:
-            df['ftc_DE_LU'] = 0
-
-        return df.dropna()
+        pass
 
     def predict(self, data: pd.DataFrame) -> pd.Series:
         if self.model_normal is None or self.model_spike is None or self.threshold is None:
