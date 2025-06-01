@@ -38,7 +38,7 @@ class TimeSeriesDataset(Dataset):
         return self.sequences[idx], self.targets[idx]
 
 class GRUModelTrainer:
-    def __init__(self, mapcode="DK1", seq_len=168, pred_len=24, batch_size=32, learning_rate=0.001, num_epochs=20, patience=3):
+    def __init__(self, mapcode="DK1", seq_len=168, pred_len=24, batch_size=32, learning_rate=0.001, num_epochs=50, patience=10):
         self.mapcode = mapcode
         self.seq_len = seq_len
         self.pred_len = pred_len
