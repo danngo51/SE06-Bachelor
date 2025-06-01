@@ -47,39 +47,30 @@ class InformerPipeline(IModelPipeline):
         
         # Debug the scaler
         print(f"Scaler expecting {self.scaler.n_features_in_} features")
-        print(f"Scaler mean shape: {self.scaler.mean_.shape}")
-        print(f"Scaler variance shape: {self.scaler.var_.shape}")
         
-        # Save original scaler statistics before potential recreation
-        self.target_mean = self.scaler.mean_[-1]
+        # Check for mismatch
+        if self.scaler.n_features_in_ != len(self.feature_cols) + 1:  # +1 for target
+            print(f"WARNING: Scaler expects {self.scaler.n_features_in_} features but model uses {len(self.feature_cols)}")
+            raise ValueError(
+                f"Scaler and feature count mismatch. Please retrain the model. "
+                f"Scaler expects {self.scaler.n_features_in_} features, model has {len(self.feature_cols)}"
+            )
+        
+        # Store target statistics for denormalization
+        self.target_mean = self.scaler.mean_[-1]  # Last element is target
         self.target_std = np.sqrt(self.scaler.var_[-1])
-        print(f"Saved target statistics: mean={self.target_mean:.4f}, std={self.target_std:.4f}")
+        print(f"Target statistics for denormalization: mean={self.target_mean:.4f}, std={self.target_std:.4f}")
         
-        # Recreate scaler if there's a mismatch
-        if self.scaler.n_features_in_ != len(self.feature_cols):
-            print("WARNING: Scaler and feature columns count mismatch. Recreating scaler...")
-            from sklearn.preprocessing import StandardScaler
-            # Create dummy data with some variance (not all zeros)
-            dummy_data = np.random.randn(100, len(self.feature_cols))
-            self.scaler = StandardScaler()
-            self.scaler.fit(dummy_data)
-            print(f"New scaler created with {self.scaler.n_features_in_} features")
-
+        # Create model
         self.model = Informer(input_dim=len(self.feature_cols),
-                            seq_len=self.seq_len,
-                            label_len=self.label_len,
-                            pred_len=self.pred_len).to(self.device)
+                       seq_len=self.seq_len,
+                       label_len=self.label_len,
+                       pred_len=self.pred_len).to(self.device)
         self.model.load_state_dict(torch.load(model_weights_path, map_location=self.device))
-
         self.model.eval()
 
     def preprocess(self, data: pd.DataFrame) -> pd.DataFrame:
         data = data.copy()
-        
-        # Debug: Print expected vs actual features
-        print(f"Expected features ({len(self.feature_cols)}): {self.feature_cols}")
-        print(f"Input data features ({len(data.columns)}): {data.columns.tolist()}")
-        print(f"Scaler expects {self.scaler.n_features_in_} features")
         
         # Check for missing features
         missing_features = [col for col in self.feature_cols if col not in data.columns]
@@ -88,23 +79,14 @@ class InformerPipeline(IModelPipeline):
             for feature in missing_features:
                 data[feature] = 0.0
     
-        # Handle scaler feature mismatch
-        if self.scaler.n_features_in_ > len(self.feature_cols):
-            print(f"WARNING: Scaler expects {self.scaler.n_features_in_} features but model uses {len(self.feature_cols)}")
-            # Add dummy feature to match scaler expectations
-            extra_features = self.scaler.n_features_in_ - len(self.feature_cols)
-            for i in range(extra_features):
-                dummy_col = f"dummy_feature_{i}"
-                print(f"Adding dummy feature: {dummy_col}")
-                data[dummy_col] = 0.0
-                self.feature_cols.append(dummy_col)
-    
         # Ensure we use features in the exact order the model expects
         data = data[self.feature_cols].astype(np.float32)
     
-        # Apply scaling
+        # Apply scaling - add a dummy target column with zeros
         try:
-            scaled_data = self.scaler.transform(data)
+            # Create input with dummy target column (will be ignored in prediction)
+            data_with_dummy_target = np.hstack([data.values, np.zeros((len(data), 1))])
+            scaled_data = self.scaler.transform(data_with_dummy_target)[:, :-1]  # Remove dummy target
             data = pd.DataFrame(scaled_data, columns=self.feature_cols, index=data.index)
         except ValueError as e:
             print(f"Error during scaling: {e}")

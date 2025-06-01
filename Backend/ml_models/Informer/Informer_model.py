@@ -93,13 +93,19 @@ class InformerModelTrainer:
     def train(self, data_path=None):
         print(self.device)
         feature_file = self.feature_dir / "features.csv"
-        top_features = pd.read_csv(feature_file)["Feature"].tolist()
+        # Fix the features loading to properly use the header
+        top_features = pd.read_csv(feature_file, header=0)["Feature"].tolist()
+        print(f"Loaded {len(top_features)} features from {feature_file}")
+        
         data_path = data_path or self.data_dir / f"{self.mapcode}_full_data_2018_2024.csv"
         df = pd.read_csv(data_path, parse_dates=['date'], index_col='date')
         df.fillna(method='ffill', inplace=True)
         df.fillna(method='bfill', inplace=True)
         df.dropna(inplace=True)
+        
         feature_cols = [col for col in top_features if col in df.columns]
+        print(f"Using {len(feature_cols)} features: {feature_cols}")
+        
         target_col = 'Electricity_price_MWh'
         train_df = df.loc['2018-01-01':'2022-12-31']
         val_df = df.loc['2023-01-01':'2023-12-31']
