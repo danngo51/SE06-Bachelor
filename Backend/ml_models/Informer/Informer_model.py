@@ -86,13 +86,16 @@ class InformerModelTrainer:
         self.project_root = current_file.parent.parent
         self.data_dir = self.project_root / "data" / self.mapcode
         self.informer_dir = self.data_dir / "informer"
+        self.feature_dir = self.data_dir / "feature"
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.informer_dir, exist_ok=True)
 
     def train(self, data_path=None):
+        feature_file = self.feature_dir / "features.csv"
+        top_features = pd.read_csv(feature_file)["Feature"].tolist()
         data_path = data_path or self.data_dir / f"{self.mapcode}_full_data_2018_2024.csv"
         df = pd.read_csv(data_path, parse_dates=['date'], index_col='date').dropna()
-        feature_cols = [c for c in df.columns if c != 'Electricity_price_MWh']
+        feature_cols = [col for col in top_features if col in df.columns]
         target_col = 'Electricity_price_MWh'
         train_df = df.loc['2018-01-01':'2022-12-31']
         val_df = df.loc['2023-01-01':'2023-12-31']
@@ -160,7 +163,7 @@ class InformerModelTrainer:
         real_targs = all_targs * std + mean
         mse = mean_squared_error(real_targs.flatten(), real_preds.flatten())
         rmse = np.sqrt(mse)
-        mae = mean_absolute_error(real_targs.flatten(), predictions.flatten())
+        mae = mean_absolute_error(real_targs.flatten(), real_preds.flatten())
         r2 = r2_score(real_targs.flatten(), real_preds.flatten())
         metrics_data = {'Metric': ['RMSE', 'MAE', 'R²'], 'Value': [rmse, mae, r2]}
         pd.DataFrame(metrics_data).to_csv(self.informer_dir / "metrics.csv", index=False)
