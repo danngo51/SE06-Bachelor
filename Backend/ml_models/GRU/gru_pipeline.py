@@ -29,12 +29,35 @@ class GRUPipeline(IModelPipeline):
     def preprocess(self, data: pd.DataFrame) -> np.ndarray:
         df = data.copy()
         if 'hour' not in df.columns and 'date' in df.columns:
-            df['hour'] = pd.to_datetime(df['date']).dt.hour
+            date_dt = pd.to_datetime(df['date'])
+            df['hour'] = date_dt.dt.hour
+            # Add cyclical encoding for time features
+            df['hour_sin'] = np.sin(2 * np.pi * df['hour']/24)
+            df['hour_cos'] = np.cos(2 * np.pi * df['hour']/24)
+            df['day_of_week'] = date_dt.dt.dayofweek
+            df['day_of_week_sin'] = np.sin(2 * np.pi * df['day_of_week']/7)
+            df['day_of_week_cos'] = np.cos(2 * np.pi * df['day_of_week']/7)
+            df['month_sin'] = np.sin(2 * np.pi * date_dt.dt.month/12)
+            df['month_cos'] = np.cos(2 * np.pi * date_dt.dt.month/12)
 
         if 'Electricity_price_MWh' in df.columns:
-            for lag in [1, 24, 168]:
+            # Add more sophisticated lag features
+            for lag in [1, 2, 3, 24, 25, 26, 48, 72, 96, 168]:
                 df[f'price_lag_{lag}'] = df['Electricity_price_MWh'].shift(lag)
-            df['price_roll_mean_24h'] = df['Electricity_price_MWh'].rolling(24).mean()
+            
+            # Add rolling statistics
+            for window in [6, 12, 24, 48, 72]:
+                df[f'price_roll_mean_{window}h'] = df['Electricity_price_MWh'].rolling(window).mean()
+                df[f'price_roll_std_{window}h'] = df['Electricity_price_MWh'].rolling(window).std()
+                df[f'price_roll_min_{window}h'] = df['Electricity_price_MWh'].rolling(window).min()
+                df[f'price_roll_max_{window}h'] = df['Electricity_price_MWh'].rolling(window).max()
+            
+            # Add price momentum features
+            df['price_diff_1h'] = df['Electricity_price_MWh'].diff()
+            df['price_diff_24h'] = df['Electricity_price_MWh'].diff(24)
+            
+            # Add volatility measure
+            df['price_volatility'] = df['Electricity_price_MWh'].rolling(24).std() / df['Electricity_price_MWh'].rolling(24).mean()
 
         df = df.fillna(0)
         features = df[self.feature_cols].values if self.feature_cols else df.select_dtypes(include=[np.number]).values

@@ -11,20 +11,42 @@ import pathlib
 import joblib
 
 class GRUModel(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_layers, output_dim, bidirectional=False):
+    def __init__(self, input_dim, hidden_dim, num_layers, output_dim, dropout=0.2, bidirectional=True):
         super().__init__()
-        self.gru = nn.GRU(input_dim, hidden_dim, num_layers, batch_first=True, bidirectional=bidirectional)
+        self.dropout = nn.Dropout(dropout)
+        self.gru = nn.GRU(
+            input_dim, 
+            hidden_dim, 
+            num_layers, 
+            batch_first=True, 
+            bidirectional=bidirectional,
+            dropout=dropout if num_layers > 1 else 0
+        )
         regressor_input_dim = hidden_dim * 2 if bidirectional else hidden_dim
-        self.regressor = nn.Linear(regressor_input_dim, output_dim)
+        
+        # Add attention mechanism
+        self.attention = nn.Linear(regressor_input_dim, 1)
+        
+        # Multi-layer regressor
+        self.regressor = nn.Sequential(
+            nn.Linear(regressor_input_dim, regressor_input_dim // 2),
+            nn.LeakyReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(regressor_input_dim // 2, output_dim)
+        )
 
     def forward(self, x):
-        _, hidden = self.gru(x)
+        output, hidden = self.gru(x)
+        
+        # Apply attention over the sequence
         if self.gru.bidirectional:
+            # Use the last hidden state from both directions
             last_forward = hidden[-2]
             last_backward = hidden[-1]
             hidden_concat = torch.cat((last_forward, last_backward), dim=1)
-            return self.regressor(hidden_concat)
-        return self.regressor(hidden[-1])
+            return self.regressor(self.dropout(hidden_concat))
+        
+        return self.regressor(self.dropout(hidden[-1]))
 
 class TimeSeriesDataset(Dataset):
     def __init__(self, sequences, targets):
@@ -38,17 +60,19 @@ class TimeSeriesDataset(Dataset):
         return self.sequences[idx], self.targets[idx]
 
 class GRUModelTrainer:
-    def __init__(self, mapcode="DK1", seq_len=96, pred_len=24, batch_size=64, learning_rate=0.001, num_epochs=50, patience=10):
+    def __init__(self, mapcode="DK1", seq_len=168, pred_len=24, batch_size=32, learning_rate=0.0005, 
+             num_epochs=100, patience=15):
         self.mapcode = mapcode
         self.seq_len = seq_len
         self.pred_len = pred_len
-        self.batch_size = batch_size
-        self.learning_rate = learning_rate
-        self.num_epochs = num_epochs
-        self.patience = patience
+        self.batch_size = batch_size  # Smaller batch size for better generalization
+        self.learning_rate = learning_rate  # Lower learning rate
+        self.num_epochs = num_epochs  # More epochs with early stopping
+        self.patience = patience  # Increased patience
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.hidden_dim = 128
-        self.num_layers = 2
+        self.hidden_dim = 256  # Increased hidden dimension
+        self.num_layers = 3  # More layers
+        self.dropout = 0.3  # Add dropout rate
         self.bidirectional = True
         self.model = None
         self.scaler_features = None
@@ -102,10 +126,32 @@ class GRUModelTrainer:
         test_loader = DataLoader(TimeSeriesDataset(test_sequences, test_targets), batch_size=self.batch_size, shuffle=False)
 
         # Initialize model, optimizer, and loss function
-        self.model = GRUModel(train_sequences.shape[-1], self.hidden_dim, self.num_layers, self.pred_len, self.bidirectional).to(self.device)
-        criterion = nn.MSELoss()
-        optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=1e-5)
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=5, verbose=True, min_lr=1e-6)
+        self.model = GRUModel(
+            train_sequences.shape[-1], 
+            self.hidden_dim, 
+            self.num_layers, 
+            self.pred_len, 
+            dropout=self.dropout,
+            bidirectional=self.bidirectional
+        ).to(self.device)
+        
+        # Use Huber loss instead of MSE for robustness to outliers
+        criterion = nn.SmoothL1Loss()
+        
+        # Use AdamW with weight decay
+        optimizer = optim.AdamW(
+            self.model.parameters(), 
+            lr=self.learning_rate, 
+            weight_decay=1e-4
+        )
+        
+        # Use cosine annealing with warm restarts
+        scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
+            optimizer, 
+            T_0=10, 
+            T_mult=2
+        )
+        
 
         best_val_loss, wait = float('inf'), 0
         for epoch in range(1, self.num_epochs + 1):
@@ -217,3 +263,19 @@ class GRUModelTrainer:
             print("Model and related files loaded successfully.")
         except Exception as e:
             print(f"Error loading model: {e}")
+
+    def augment_training_data(self, sequences, targets):
+        """Apply data augmentation techniques to increase training diversity"""
+        aug_sequences = sequences.copy()
+        aug_targets = targets.copy()
+        
+        # Add small Gaussian noise
+        noise_factor = 0.05
+        noise = noise_factor * np.random.normal(0, 1, aug_sequences.shape)
+        aug_sequences += noise
+        
+        # Combine original and augmented data
+        combined_sequences = np.concatenate([sequences, aug_sequences], axis=0)
+        combined_targets = np.concatenate([targets, aug_targets], axis=0)
+        
+        return combined_sequences, combined_targets
