@@ -22,6 +22,7 @@ class DataEmbedding(nn.Module):
         pos = torch.arange(x.size(1), device=x.device).unsqueeze(0)
         return self.dropout(self.value_emb(x) + self.pos_emb(pos))
 
+
 class Informer(nn.Module):
     def __init__(self, input_dim, d_model=256, n_heads=8, e_layers=2, d_layers=1, dropout=0.2, seq_len=168, label_len=48, pred_len=24):
         super().__init__()
@@ -47,6 +48,7 @@ class Informer(nn.Module):
         dec_out = self.decoder(self.dec_emb(dec_y.unsqueeze(-1)), enc_out)
         return self.proj(dec_out).squeeze(-1)
 
+
 class TimeSeriesDataset(Dataset):
     def __init__(self, df, feature_cols, target_col, seq_len, label_len, pred_len, scaler=None):
         self.seq_len = seq_len
@@ -68,6 +70,7 @@ class TimeSeriesDataset(Dataset):
     def __getitem__(self, idx):
         enc_x, dec_y = self.samples[idx]
         return {'enc_x': torch.from_numpy(enc_x), 'dec_y': torch.from_numpy(dec_y)}
+
 
 class InformerModelTrainer:
     def __init__(self, mapcode="DK1", seq_len=168, label_len=48, 
@@ -173,12 +176,13 @@ class InformerModelTrainer:
         real_targs = all_targs * std + mean
         mse = mean_squared_error(real_targs.flatten(), real_preds.flatten())
         rmse = np.sqrt(mse)
+        mape = np.mean(np.abs((real_targs.flatten() - real_preds.flatten()) / real_targs.flatten())) * 100
         r2 = r2_score(real_targs.flatten(), real_preds.flatten())
-        metrics_data = {'Metric': ['RMSE', 'R²'], 'Value': [rmse, r2]}
+        metrics_data = {'Metric': ['RMSE', 'MAPE', 'R²'], 'Value': [rmse, mape, r2]}
         pd.DataFrame(metrics_data).to_csv(self.informer_dir / "metrics.csv", index=False)
 
         return {
             "model_path": str(self.informer_dir / 'best_informer.pt'),
             "scaler_path": str(self.informer_dir / 'scaler.pkl'),
-            "metrics": {"mse": mse, "rmse": rmse, "r2": r2}
+            "metrics": {"mse": mse, "rmse": rmse, "mape": mape, "r2": r2}
         }
