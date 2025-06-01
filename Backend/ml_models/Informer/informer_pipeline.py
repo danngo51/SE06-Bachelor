@@ -28,15 +28,25 @@ class InformerPipeline(IModelPipeline):
 
 
 
-    def load_model(self, model_path: str) -> None:
-        base_dir = pathlib.Path(model_path).parent
-        self.scaler = joblib.load(base_dir / "scaler.pkl")
-        self.feature_cols = joblib.load(base_dir / "feature_columns.pkl")
+    def load_model(self, model_path: Optional[str]) -> None:
+        informer_dir = pathlib.Path(model_path) if model_path else self.informer_dir
+
+        scaler_path = informer_dir / "scaler.pkl"
+        feature_columns_path = informer_dir / "feature_columns.pkl"
+        model_weights_path = informer_dir / "best_informer.pt"  # Assuming model weights are saved as model.pth
+        
+        if not scaler_path.exists() or not feature_columns_path.exists() or not model_weights_path.exists():
+            raise FileNotFoundError(f"Model files not found in {informer_dir}")
+        
+        self.scaler = joblib.load(scaler_path)
+        self.feature_cols = joblib.load(feature_columns_path)
+
         self.model = Informer(input_dim=len(self.feature_cols),
-                              seq_len=self.seq_len,
-                              label_len=self.label_len,
-                              pred_len=self.pred_len).to(self.device)
-        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+                            seq_len=self.seq_len,
+                            label_len=self.label_len,
+                            pred_len=self.pred_len).to(self.device)
+        self.model.load_state_dict(torch.load(model_weights_path, map_location=self.device))
+
         self.model.eval()
 
     def preprocess(self, data: pd.DataFrame) -> pd.DataFrame:
