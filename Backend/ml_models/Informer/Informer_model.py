@@ -377,15 +377,29 @@ class InformerModelTrainer:
         real_preds = all_preds * std + mean
         real_targs = all_targs * std + mean
 
-        # Calculate metrics
+       # Calculate metrics
         mse = mean_squared_error(real_targs.flatten(), real_preds.flatten())
+        rmse = np.sqrt(mse)
         mae = mean_absolute_error(real_targs.flatten(), real_preds.flatten())
         r2 = r2_score(real_targs.flatten(), real_preds.flatten())
         
+        # Calculate MAPE (Mean Absolute Percentage Error)
+        mape = np.mean(np.abs((real_targs.flatten() - real_preds.flatten()) / real_targs.flatten())) * 100
+
         print("Test metrics:")
-        print(f"  MSE : {mse:.2f}")
+        print(f"  RMSE : {rmse:.2f}")
         print(f"  MAE : {mae:.2f}")
+        print(f"  MAPE : {mape:.2f}%")
         print(f"  R^2 : {r2:.4f}")
+
+        metrics_file = self.informer_dir / "metrics.csv"
+        metrics_data = {
+            'Metric': ['RMSE', 'MAE', 'MAPE (%)', 'R²'],
+            'Value': [rmse, mae, mape, r2]
+        }
+        metrics_df = pd.DataFrame(metrics_data)
+        metrics_df.to_csv(metrics_file, index=False)
+        print(f"✅ Metrics saved to {metrics_file}")
 
         # Plot and save results
         self._plot_results(real_targs.flatten(), real_preds.flatten(), train_losses, val_losses)          # Save model metadata
@@ -415,15 +429,16 @@ class InformerModelTrainer:
                 "total_epochs": len(train_losses)
             },
             "metrics": {
-                "mse": float(mse),
+                "rmse": float(rmse),
                 "mae": float(mae),
+                "mape": float(mape),
                 "r2": float(r2)
             },
             "feature_count": len(feature_cols),
             "features": feature_cols
         }
         
-        # Save in a format that can be easily loaded
+       # Save metadata
         with open(self.informer_dir / "model_metadata.txt", "w") as f:
             f.write(str(metadata))
         
@@ -431,8 +446,9 @@ class InformerModelTrainer:
             "model_path": str(self.informer_dir / 'informer_model.pt'),
             "scaler_path": str(self.informer_dir / 'scaler.pkl'),
             "metrics": {
-                "mse": float(mse),
+                "rmse": float(rmse),
                 "mae": float(mae),
+                "mape": float(mape),
                 "r2": float(r2)
             }
         }

@@ -411,7 +411,36 @@ class GRUModelTrainer:
                 # For training-only, save periodically as well
                 if save_model and (epoch + 1) % 10 == 0:
                     print(f"📁 Periodic save at epoch {epoch+1}")
-          # Final model save
+        
+        # Final evaluation on training data
+        print("Evaluating on training data...")
+        train_predictions = self.predict(train_df)
+        train_actual_values = train_df['Electricity_price_MWh'].values
+
+        # Calculate metrics
+        train_mse = mean_squared_error(train_actual_values, train_predictions.flatten())
+        train_rmse = np.sqrt(train_mse)
+        train_mae = mean_absolute_error(train_actual_values, train_predictions.flatten())
+        train_r2 = r2_score(train_actual_values, train_predictions.flatten())
+        train_mape = np.mean(np.abs((train_actual_values - train_predictions.flatten()) / train_actual_values)) * 100
+
+        print("Training metrics:")
+        print(f"  RMSE : {train_rmse:.2f}")
+        print(f"  MAE : {train_mae:.2f}")
+        print(f"  MAPE : {train_mape:.2f}%")
+        print(f"  R^2 : {train_r2:.4f}")
+
+        # Save metrics to CSV
+        metrics_file = self.gru_dir / "metrics.csv"
+        metrics_data = {
+            'Metric': ['RMSE', 'MAE', 'MAPE (%)', 'R²'],
+            'Value': [train_rmse, train_mae, train_mape, train_r2]
+        }
+        metrics_df = pd.DataFrame(metrics_data)
+        metrics_df.to_csv(metrics_file, index=False)
+        print(f"✅ Metrics saved to {metrics_file}")
+        
+        # Final model save
         if save_model:
             if val_loader:
                 print(f"🏆 Training completed! Best validation loss: {best_val_loss:.4f}")
