@@ -74,6 +74,12 @@ class InformerPipeline(IModelPipeline):
         if not feature_cols:
             raise ValueError("No matching feature columns found in the historical data.")
 
+        if self.scaler is not None and self.scaler.mean_.shape[0] != len(feature_cols):
+            raise ValueError(
+                f"Feature count mismatch: Scaler expects {self.scaler.mean_.shape[0]} features, "
+                f"but input data has {len(feature_cols)} features."
+            )
+
         features = data[feature_cols].values.astype(np.float32)
         if self.scaler is not None:
             features = self.scaler.transform(features)
@@ -119,3 +125,6 @@ class InformerPipeline(IModelPipeline):
             return predictions.reset_index().rename(columns={'index': 'date'})
         else:
             raise ValueError("Prediction date must be specified.")
+        
+    def load_model(self, model_path: str) -> None:
+        pass
