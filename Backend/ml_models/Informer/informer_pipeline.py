@@ -50,11 +50,17 @@ class InformerPipeline(IModelPipeline):
         print(f"Scaler mean shape: {self.scaler.mean_.shape}")
         print(f"Scaler variance shape: {self.scaler.var_.shape}")
         
+        # Save original scaler statistics before potential recreation
+        self.target_mean = self.scaler.mean_[-1]
+        self.target_std = np.sqrt(self.scaler.var_[-1])
+        print(f"Saved target statistics: mean={self.target_mean:.4f}, std={self.target_std:.4f}")
+        
         # Recreate scaler if there's a mismatch
         if self.scaler.n_features_in_ != len(self.feature_cols):
             print("WARNING: Scaler and feature columns count mismatch. Recreating scaler...")
             from sklearn.preprocessing import StandardScaler
-            dummy_data = np.zeros((1, len(self.feature_cols)))
+            # Create dummy data with some variance (not all zeros)
+            dummy_data = np.random.randn(100, len(self.feature_cols))
             self.scaler = StandardScaler()
             self.scaler.fit(dummy_data)
             print(f"New scaler created with {self.scaler.n_features_in_} features")
@@ -126,9 +132,20 @@ class InformerPipeline(IModelPipeline):
             output = self.model(enc_x, dec_y)
         preds = output[0, -self.pred_len:].cpu().numpy()
 
-        # De-normalize
-        preds = preds * np.sqrt(self.scaler.var_[-1]) + self.scaler.mean_[-1]
-        return preds.tolist()
+        # De-normalize using the original target statistics
+        if hasattr(self, 'target_mean') and hasattr(self, 'target_std'):
+            # Use saved statistics from original scaler
+            denorm_preds = preds * self.target_std + self.target_mean
+            print(f"Using saved target statistics for denormalization: mean={self.target_mean:.4f}, std={self.target_std:.4f}")
+        else:
+            # Fallback to current scaler (though this might be problematic if it was recreated)
+            denorm_preds = preds * np.sqrt(self.scaler.var_[-1]) + self.scaler.mean_[-1]
+        
+        # Debug final predictions
+        print(f"Final predictions after denormalization: {denorm_preds}")
+        print(f"Final prediction stats - min: {denorm_preds.min():.2f}, max: {denorm_preds.max():.2f}, mean: {denorm_preds.mean():.2f}")
+        
+        return denorm_preds.tolist()
 
     def predict_from_file(self, file_path: str, date_str: Optional[str] = None) -> pd.DataFrame:
         # Load all data from file
