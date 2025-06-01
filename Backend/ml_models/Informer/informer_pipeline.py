@@ -26,111 +26,72 @@ class InformerPipeline(IModelPipeline):
         self.data_dir = self.project_root / "data" / self.mapcode
         self.informer_dir = self.data_dir / "informer"
 
-    def load_model(self, model_path: Optional[str] = None) -> bool:
-        informer_dir = pathlib.Path(model_path) if model_path else self.informer_dir
-        
-        try:
-            model_path = str(informer_dir / "best_informer.pt")
-            scaler_path = str(informer_dir / "scaler.pkl")
-            features_file = self.data_dir / "feature" / "features.csv"
-            
-            if not os.path.exists(model_path):
-                raise FileNotFoundError(f"Informer model file not found: {model_path}")
-            
-            if os.path.exists(features_file):
-                features_df = pd.read_csv(features_file)
-                self.training_feature_cols = features_df['Feature'].tolist()
-            else:
-                raise FileNotFoundError(f"Features file not found: {features_file}")
-            
-            input_dim = len(self.training_feature_cols) + 1 
-            
-            self.model = Informer(
-                input_dim=input_dim, 
-                seq_len=self.seq_len,
-                label_len=self.label_len,
-                pred_len=self.pred_len
-            ).to(self.device)
-            
-            state_dict = torch.load(model_path, map_location=self.device)
-            self.model.load_state_dict(state_dict)
-            self.model.eval()
-            
-            if os.path.exists(scaler_path):
-                self.scaler = joblib.load(scaler_path)
-            
-            print(f"Informer model loaded successfully from {model_path}")
-            return True
-        except Exception as e:
-            print(f"Error loading Informer model: {e}")
-            return False
 
-    def _prepare_informer_data(self, data: pd.DataFrame) -> Tuple[torch.Tensor, List[str]]:
-        if self.training_feature_cols is None:
-            raise ValueError("Training feature columns are not defined. Ensure the model is trained first.")
 
-        feature_cols = [col for col in self.training_feature_cols if col in data.columns]
-        if not feature_cols:
-            raise ValueError("No matching feature columns found in the historical data.")
-
-        target_col = 'Electricity_price_MWh'
-        if target_col not in data.columns:
-            raise ValueError(f"Target column '{target_col}' not found in the input data.")
-        feature_cols.append(target_col)
-
-        if self.scaler is not None and self.scaler.mean_.shape[0] != len(feature_cols):
-            raise ValueError(
-                f"Feature count mismatch: Scaler expects {self.scaler.mean_.shape[0]} features, "
-                f"but input data has {len(feature_cols)} features."
-            )
-
-        features = data[feature_cols].values.astype(np.float32)
-        if self.scaler is not None:
-            features = self.scaler.transform(features)
-
-        # Convert features to PyTorch tensor
-        informer_tensor = torch.tensor(features, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
-
-        return informer_tensor, feature_cols
-    
-    def predict(self, data: pd.DataFrame) -> pd.Series:
-        if self.model is None:
-            raise ValueError("Model not loaded. Call load_model() first.")
-
-        informer_tensor, feature_cols = self._prepare_informer_data(data)
+    def load_model(self, model_path: str) -> None:
+        base_dir = pathlib.Path(model_path).parent
+        self.scaler = joblib.load(base_dir / "scaler.pkl")
+        self.feature_cols = joblib.load(base_dir / "feature_columns.pkl")
+        self.model = Informer(input_dim=len(self.feature_cols),
+                              seq_len=self.seq_len,
+                              label_len=self.label_len,
+                              pred_len=self.pred_len).to(self.device)
+        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
         self.model.eval()
 
-        dec_inp = torch.zeros((1, self.label_len + self.pred_len), device=self.device)
-        if 'Electricity_price_MWh' in data.columns and len(data) >= self.label_len and self.label_len > 0:
-            target_data = data['Electricity_price_MWh'].values[-self.label_len:]
-            if self.scaler is not None:
-                target_mean, target_std = self.scaler.mean_[-1], np.sqrt(self.scaler.var_[-1])
-                target_data = (target_data - target_mean) / target_std
-            dec_inp[0, :self.label_len] = torch.tensor(target_data, dtype=torch.float32)
+    def preprocess(self, data: pd.DataFrame) -> pd.DataFrame:
+        data = data.copy()
+        data = data[self.feature_cols].astype(np.float32)
+        data = pd.DataFrame(self.scaler.transform(data), columns=self.feature_cols, index=data.index)
+        return data
+
+    def predict(self, data: pd.DataFrame) -> List[float]:
+        preprocessed = self.preprocess(data)
+        if len(preprocessed) < self.seq_len:
+            raise ValueError(f"Input data must have at least {self.seq_len} rows for prediction.")
+        last_seq = preprocessed[-self.seq_len:].values
+        enc_x = torch.from_numpy(last_seq).unsqueeze(0).to(self.device)
+
+        # Prepare decoder input
+        dec_y = torch.zeros((1, self.label_len + self.pred_len), device=self.device)
+        if self.label_len > 0 and len(preprocessed) >= self.label_len:
+            dec_y[0, :self.label_len] = torch.from_numpy(
+                preprocessed.iloc[-self.label_len:][self.feature_cols[-1]].values
+            )
 
         with torch.no_grad():
-            informer_tensor = informer_tensor.to(self.device)
-            dec_inp = dec_inp.to(self.device)
-            predictions = self.model(informer_tensor, dec_inp).cpu().numpy().flatten()
+            output = self.model(enc_x, dec_y)
+        preds = output[0, -self.pred_len:].cpu().numpy()
 
-        if self.scaler is not None:
-            target_mean, target_std = self.scaler.mean_[-1], np.sqrt(self.scaler.var_[-1])
-            predictions = predictions * target_std + target_mean
-
-        prediction_dates = pd.date_range(start=data['date'].iloc[-1], periods=self.pred_len, freq='H')
-        return pd.Series(predictions, index=prediction_dates, name='Predicted')
+        # De-normalize
+        preds = preds * np.sqrt(self.scaler.var_[-1]) + self.scaler.mean_[-1]
+        return preds.tolist()
 
     def predict_from_file(self, file_path: str, date_str: Optional[str] = None) -> pd.DataFrame:
         df = pd.read_csv(file_path, parse_dates=['date'])
+
         if date_str:
-            prediction_date = pd.to_datetime(date_str)
-            historical_data = df[df['date'] < prediction_date].tail(self.seq_len)
-            if len(historical_data) < self.seq_len:
-                raise ValueError(f"Insufficient data for prediction. Expected at least {self.seq_len} rows.")
-            predictions = self.predict(historical_data)
-            return predictions.reset_index().rename(columns={'index': 'date'})
-        else:
-            raise ValueError("Prediction date must be specified.")
-        
-    def preprocess(self, model_path: str) -> None:
-        pass
+            df = df[df['date'].dt.strftime('%Y-%m-%d') == date_str]
+            if df.empty:
+                raise ValueError(f"No data found for date: {date_str}")
+
+        if 'Electricity_price_MWh' not in df.columns:
+            raise ValueError("Column 'Electricity_price_MWh' not found in input file.")
+
+        if 'hour' not in df.columns:
+            df['hour'] = df['date'].dt.hour
+
+        base_features = [c for c in df.columns if c not in ['date', 'hour', 'Electricity_price_MWh']]
+        if not all(f in df.columns for f in self.feature_cols):
+            raise ValueError("Missing one or more required feature columns for prediction.")
+
+        # Keep only relevant features in correct order
+        X = df[self.feature_cols]
+
+        preds = self.predict(X)
+        df = df.tail(self.pred_len).copy()
+        df['Predicted'] = preds
+        df['True'] = df['Electricity_price_MWh'].values[-self.pred_len:]
+        df['Pct_of_True'] = df['Predicted'] / df['True'] * 100
+
+        return df[['date', 'hour', 'True', 'Predicted', 'Pct_of_True']]

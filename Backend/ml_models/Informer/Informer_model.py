@@ -86,7 +86,7 @@ class InformerModelTrainer:
         self.project_root = current_file.parent.parent
         self.data_dir = self.project_root / "data" / self.mapcode
         self.informer_dir = self.data_dir / "informer"
-        self.feature_dir = self.data_dir / "feature"
+        self.feature_dir = self.informer_dir / "feature"
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.informer_dir, exist_ok=True)
 
