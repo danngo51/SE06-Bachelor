@@ -27,29 +27,38 @@ class InformerPipeline(IModelPipeline):
         self.informer_dir = self.data_dir / "informer"
 
     def load_model(self, model_path: Optional[str] = None) -> bool:
-        """
-        Load the trained Informer model and scaler.
-        """
         informer_dir = pathlib.Path(model_path) if model_path else self.informer_dir
         
         try:
             model_path = str(informer_dir / "best_informer.pt")
             scaler_path = str(informer_dir / "scaler.pkl")
-            feature_cols_path = str(informer_dir / "feature_columns.pkl")
+            features_file = self.data_dir / "feature" / "features.csv"
             
             if not os.path.exists(model_path):
                 raise FileNotFoundError(f"Informer model file not found: {model_path}")
             
-            self.model = torch.load(model_path, map_location=self.device)
+            # Reinitialize the model architecture
+            self.model = Informer(
+                input_dim=10,  # Number of features from features.csv
+                seq_len=self.seq_len,
+                label_len=self.label_len,
+                pred_len=self.pred_len
+            ).to(self.device)
+            
+            # Load the state dictionary
+            state_dict = torch.load(model_path, map_location=self.device)
+            self.model.load_state_dict(state_dict)
             self.model.eval()
             
             if os.path.exists(scaler_path):
                 self.scaler = joblib.load(scaler_path)
             
-            if os.path.exists(feature_cols_path):
-                self.training_feature_cols = joblib.load(feature_cols_path)
+            # Dynamically load features from features.csv
+            if os.path.exists(features_file):
+                features_df = pd.read_csv(features_file)
+                self.training_feature_cols = features_df['Feature'].tolist()
             else:
-                self.training_feature_cols = None
+                raise FileNotFoundError(f"Features file not found: {features_file}")
             
             print(f"Informer model loaded successfully from {model_path}")
             return True
@@ -58,9 +67,6 @@ class InformerPipeline(IModelPipeline):
             return False
 
     def _prepare_informer_data(self, data: pd.DataFrame) -> Tuple[torch.Tensor, List[str]]:
-        """
-        Prepare data for the Informer model.
-        """
         if self.training_feature_cols is None:
             raise ValueError("Training feature columns are not defined. Ensure the model is trained first.")
 
@@ -76,9 +82,6 @@ class InformerPipeline(IModelPipeline):
         return informer_tensor, feature_cols
 
     def predict(self, data: pd.DataFrame) -> pd.Series:
-        """
-        Predict electricity prices for the next 24 hours.
-        """
         if self.model is None:
             raise ValueError("Model not loaded. Call load_model() first.")
 
@@ -106,9 +109,6 @@ class InformerPipeline(IModelPipeline):
         return pd.Series(predictions, index=prediction_dates, name='Predicted')
 
     def predict_from_file(self, file_path: str, date_str: Optional[str] = None) -> pd.DataFrame:
-        """
-        Predict electricity prices using data from a file.
-        """
         df = pd.read_csv(file_path, parse_dates=['date'])
         if date_str:
             prediction_date = pd.to_datetime(date_str)
