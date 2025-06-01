@@ -68,6 +68,7 @@ class TimeSeriesDataset(Dataset):
     def __getitem__(self, idx):
         enc_x, dec_y = self.samples[idx]
         return {'enc_x': torch.from_numpy(enc_x), 'dec_y': torch.from_numpy(dec_y)}
+
 class InformerModelTrainer:
     def __init__(self, mapcode="DK1", seq_len=168, label_len=48, 
                 pred_len=24, batch_size=32, learning_rate=1e-4,
@@ -86,13 +87,19 @@ class InformerModelTrainer:
         self.project_root = current_file.parent.parent
         self.data_dir = self.project_root / "data" / self.mapcode
         self.informer_dir = self.data_dir / "informer"
+        self.feature_file = self.data_dir / "feature" / "features.csv"
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.informer_dir, exist_ok=True)
 
     def train(self, data_path=None):
         data_path = data_path or self.data_dir / f"{self.mapcode}_full_data_2018_2024.csv"
         df = pd.read_csv(data_path, parse_dates=['date'], index_col='date').dropna()
-        feature_cols = [c for c in df.columns if c != 'Electricity_price_MWh']
+
+        # Load top features from features.csv
+        if not self.feature_file.exists():
+            raise FileNotFoundError(f"Feature file not found: {self.feature_file}")
+        feature_cols = pd.read_csv(self.feature_file)['Feature'].tolist()
+
         target_col = 'Electricity_price_MWh'
         train_df = df.loc['2018-01-01':'2022-12-31']
         val_df = df.loc['2023-01-01':'2023-12-31']
