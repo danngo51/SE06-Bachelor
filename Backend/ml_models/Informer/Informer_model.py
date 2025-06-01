@@ -94,7 +94,10 @@ class InformerModelTrainer:
         feature_file = self.feature_dir / "features.csv"
         top_features = pd.read_csv(feature_file)["Feature"].tolist()
         data_path = data_path or self.data_dir / f"{self.mapcode}_full_data_2018_2024.csv"
-        df = pd.read_csv(data_path, parse_dates=['date'], index_col='date').dropna()
+        df = pd.read_csv(data_path, parse_dates=['date'], index_col='date')
+        df.fillna(method='ffill', inplace=True)
+        df.fillna(method='bfill', inplace=True)
+        df.dropna(inplace=True)
         feature_cols = [col for col in top_features if col in df.columns]
         target_col = 'Electricity_price_MWh'
         train_df = df.loc['2018-01-01':'2022-12-31']
@@ -113,27 +116,39 @@ class InformerModelTrainer:
         optimizer = optim.Adam(model.parameters(), lr=self.learning_rate, weight_decay=1e-4)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=2)
         best_val, wait = float('inf'), 0
-        train_losses, val_losses = [], []
 
         for epoch in range(1, self.epochs + 1):
             model.train()
-            train_loss = sum(
-                criterion(model(batch['enc_x'].to(self.device), batch['dec_y'].to(self.device)[:, :self.label_len+self.pred_len])[:, -self.pred_len:], batch['dec_y'].to(self.device)[:, -self.pred_len:]).item()
-                for batch in train_loader
-            ) / len(train_loader)
-            train_losses.append(train_loss)
+            train_loss = 0.0
+            for batch in train_loader:
+                enc_x = batch['enc_x'].to(self.device)
+                dec_y = batch['dec_y'].to(self.device)
+                optimizer.zero_grad()
+                out = model(enc_x, dec_y[:, :self.label_len+self.pred_len])
+                loss = criterion(out[:, -self.pred_len:], dec_y[:, -self.pred_len:])
+                loss.backward()
+                nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                optimizer.step()
+                train_loss += loss.item()
+            train_loss /= len(train_loader)
+
             model.eval()
-            val_loss = sum(
-                criterion(model(batch['enc_x'].to(self.device), batch['dec_y'].to(self.device)[:, :self.label_len+self.pred_len])[:, -self.pred_len:], batch['dec_y'].to(self.device)[:, -self.pred_len:]).item()
-                for batch in val_loader
-            ) / len(val_loader)
-            val_losses.append(val_loss)
+            val_loss = 0.0
+            with torch.no_grad():
+                for batch in val_loader:
+                    enc_x = batch['enc_x'].to(self.device)
+                    dec_y = batch['dec_y'].to(self.device)
+                    out = model(enc_x, dec_y[:, :self.label_len+self.pred_len])
+                    val_loss += criterion(out[:, -self.pred_len:], dec_y[:, -self.pred_len:]).item()
+            val_loss /= len(val_loader)
+
             scheduler.step(val_loss)
-            print(f"Epoch {epoch}/{self.epochs} - Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+            print(f"Epoch {epoch}/{self.epochs} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
 
             if val_loss < best_val:
                 best_val, wait = val_loss, 0
                 torch.save(model.state_dict(), self.informer_dir / 'best_informer.pt')
+                print(f"Saved new best model (val {best_val:.4f})")
             else:
                 wait += 1
                 if wait >= self.early_stop_patience:
