@@ -73,6 +73,11 @@ class InformerPipeline(IModelPipeline):
         feature_cols = [col for col in self.training_feature_cols if col in data.columns]
         if not feature_cols:
             raise ValueError("No matching feature columns found in the historical data.")
+        
+        target_col = 'Electricity_price_MWh'
+        if target_col not in data.columns:
+            raise ValueError(f"Target column '{target_col}' not found in the input data.")
+        feature_cols.append(target_col)
 
         if self.scaler is not None and self.scaler.mean_.shape[0] != len(feature_cols):
             raise ValueError(
@@ -84,9 +89,9 @@ class InformerPipeline(IModelPipeline):
         if self.scaler is not None:
             features = self.scaler.transform(features)
 
-        informer_tensor = torch.tensor(features, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
+        informer_tensor = torch.tensor(features, dtype=torch.float32).unsqueeze(0) 
         return informer_tensor, feature_cols
-
+    
     def predict(self, data: pd.DataFrame) -> pd.Series:
         if self.model is None:
             raise ValueError("Model not loaded. Call load_model() first.")
@@ -126,5 +131,5 @@ class InformerPipeline(IModelPipeline):
         else:
             raise ValueError("Prediction date must be specified.")
         
-    def load_model(self, model_path: str) -> None:
+    def preprocess(self, model_path: str) -> None:
         pass
