@@ -429,6 +429,7 @@ class InformerModelTrainer:
                 "total_epochs": len(train_losses)
             },
             "metrics": {
+                "mse": float(mse),
                 "rmse": float(rmse),
                 "mae": float(mae),
                 "mape": float(mape),
@@ -446,6 +447,7 @@ class InformerModelTrainer:
             "model_path": str(self.informer_dir / 'informer_model.pt'),
             "scaler_path": str(self.informer_dir / 'scaler.pkl'),
             "metrics": {
+                "mse": float(mse),
                 "rmse": float(rmse),
                 "mae": float(mae),
                 "mape": float(mape),
