@@ -91,6 +91,7 @@ class InformerModelTrainer:
         os.makedirs(self.informer_dir, exist_ok=True)
 
     def train(self, data_path=None):
+        print(self.device)
         feature_file = self.feature_dir / "features.csv"
         top_features = pd.read_csv(feature_file)["Feature"].tolist()
         data_path = data_path or self.data_dir / f"{self.mapcode}_full_data_2018_2024.csv"
