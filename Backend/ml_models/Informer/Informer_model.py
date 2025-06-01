@@ -100,6 +100,12 @@ class InformerModelTrainer:
             raise FileNotFoundError(f"Feature file not found: {self.feature_file}")
         feature_cols = pd.read_csv(self.feature_file)['Feature'].tolist()
 
+        # Ensure the dataset includes 'date', top features, and target column
+        required_cols = ['date'] + feature_cols + ['Electricity_price_MWh']
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            raise ValueError(f"Missing required columns in dataset: {missing_cols}")
+
         target_col = 'Electricity_price_MWh'
         train_df = df.loc['2018-01-01':'2022-12-31']
         val_df = df.loc['2023-01-01':'2023-12-31']
