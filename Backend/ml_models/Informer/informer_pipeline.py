@@ -37,28 +37,27 @@ class InformerPipeline(IModelPipeline):
             if not os.path.exists(model_path):
                 raise FileNotFoundError(f"Informer model file not found: {model_path}")
             
-            # Reinitialize the model architecture
+            if os.path.exists(features_file):
+                features_df = pd.read_csv(features_file)
+                self.training_feature_cols = features_df['Feature'].tolist()
+            else:
+                raise FileNotFoundError(f"Features file not found: {features_file}")
+            
+            input_dim = len(self.training_feature_cols) + 1 
+            
             self.model = Informer(
-                input_dim=10,  # Number of features from features.csv
+                input_dim=input_dim, 
                 seq_len=self.seq_len,
                 label_len=self.label_len,
                 pred_len=self.pred_len
             ).to(self.device)
             
-            # Load the state dictionary
             state_dict = torch.load(model_path, map_location=self.device)
             self.model.load_state_dict(state_dict)
             self.model.eval()
             
             if os.path.exists(scaler_path):
                 self.scaler = joblib.load(scaler_path)
-            
-            # Dynamically load features from features.csv
-            if os.path.exists(features_file):
-                features_df = pd.read_csv(features_file)
-                self.training_feature_cols = features_df['Feature'].tolist()
-            else:
-                raise FileNotFoundError(f"Features file not found: {features_file}")
             
             print(f"Informer model loaded successfully from {model_path}")
             return True
@@ -73,7 +72,7 @@ class InformerPipeline(IModelPipeline):
         feature_cols = [col for col in self.training_feature_cols if col in data.columns]
         if not feature_cols:
             raise ValueError("No matching feature columns found in the historical data.")
-        
+
         target_col = 'Electricity_price_MWh'
         if target_col not in data.columns:
             raise ValueError(f"Target column '{target_col}' not found in the input data.")
@@ -89,7 +88,9 @@ class InformerPipeline(IModelPipeline):
         if self.scaler is not None:
             features = self.scaler.transform(features)
 
-        informer_tensor = torch.tensor(features, dtype=torch.float32).unsqueeze(0) 
+        # Convert features to PyTorch tensor
+        informer_tensor = torch.tensor(features, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
+
         return informer_tensor, feature_cols
     
     def predict(self, data: pd.DataFrame) -> pd.Series:
