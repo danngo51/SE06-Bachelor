@@ -33,7 +33,7 @@ class InformerPipeline(IModelPipeline):
         informer_dir = pathlib.Path(model_path) if model_path else self.informer_dir
         
         try:
-            model_path = str(informer_dir / "informer_model.pt")
+            model_path = str(informer_dir / "best_informer.pt")
             scaler_path = str(informer_dir / "scaler.pkl")
             feature_cols_path = str(informer_dir / "feature_columns.pkl")
             
