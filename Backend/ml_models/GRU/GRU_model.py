@@ -38,7 +38,7 @@ class TimeSeriesDataset(Dataset):
         return self.sequences[idx], self.targets[idx]
 
 class GRUModelTrainer:
-    def __init__(self, mapcode="DK1", seq_len=168, pred_len=24, batch_size=32, learning_rate=0.001, num_epochs=50, patience=10):
+    def __init__(self, mapcode="DK1", seq_len=96, pred_len=24, batch_size=64, learning_rate=0.001, num_epochs=50, patience=10):
         self.mapcode = mapcode
         self.seq_len = seq_len
         self.pred_len = pred_len
@@ -60,15 +60,6 @@ class GRUModelTrainer:
         self.gru_dir = self.data_dir / "gru"
         self.gru_dir.mkdir(exist_ok=True)
 
-    def create_features(self, df):
-        df = df.copy()
-        df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
-        df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
-        for lag in [1, 24, 168]:
-            df[f'price_lag_{lag}'] = df['Electricity_price_MWh'].shift(lag)
-        for window in [24, 168]:
-            df[f'price_roll_mean_{window}'] = df['Electricity_price_MWh'].rolling(window).mean()
-        return df.dropna()
 
     def prepare_sequences(self, df):
         feature_cols = [col for col in df.columns if col not in ['date', 'Electricity_price_MWh']]
@@ -113,8 +104,8 @@ class GRUModelTrainer:
         # Initialize model, optimizer, and loss function
         self.model = GRUModel(train_sequences.shape[-1], self.hidden_dim, self.num_layers, self.pred_len, self.bidirectional).to(self.device)
         criterion = nn.MSELoss()
-        optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=2)
+        optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=1e-5)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=5, verbose=True, min_lr=1e-6)
 
         best_val_loss, wait = float('inf'), 0
         for epoch in range(1, self.num_epochs + 1):
@@ -144,6 +135,7 @@ class GRUModelTrainer:
 
             # Print training and validation loss
             print(f"Epoch {epoch}/{self.num_epochs} - Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+            scheduler.step(val_loss)
 
             # Early stopping
             if val_loss < best_val_loss:
@@ -190,7 +182,7 @@ class GRUModelTrainer:
         pd.DataFrame(metrics_data).to_csv(self.gru_dir / "metrics.csv", index=False)
 
     def predict(self, data):
-        data = self.create_features(data)
+        #data = self.create_features(data)
         sequences, _, _ = self.prepare_sequences(data)
         sequences = self.scaler_features.transform(sequences.reshape(-1, sequences.shape[-1])).reshape(sequences.shape)
         sequences_tensor = torch.FloatTensor(sequences).to(self.device)

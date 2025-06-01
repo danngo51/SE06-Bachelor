@@ -36,7 +36,7 @@ def train_gru(country_code):
     if not training_path.exists():
         return False
 
-    trainer.num_epochs = 100
+    trainer.num_epochs = 50
     trainer.patience = 10
 
     try:
