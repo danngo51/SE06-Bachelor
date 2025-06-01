@@ -99,21 +99,22 @@ class InformerModelTrainer:
 
     def train(self, data_path=None):
         print(self.device)
-        feature_file = self.feature_dir / "features.csv"
-        # Fix the features loading to properly use the header
-        top_features = pd.read_csv(feature_file, header=0)["Feature"].tolist()
-        print(f"Loaded {len(top_features)} features from {feature_file}")
         
+        # Load data first
         data_path = data_path or self.data_dir / f"{self.mapcode}_full_data_2018_2024.csv"
         df = pd.read_csv(data_path, parse_dates=['date'], index_col='date')
         df.fillna(method='ffill', inplace=True)
         df.fillna(method='bfill', inplace=True)
         df.dropna(inplace=True)
         
-        feature_cols = [col for col in top_features if col in df.columns]
-        print(f"Using {len(feature_cols)} features: {feature_cols}")
-        
+        # Use all available features except 'date' and target column
         target_col = 'Electricity_price_MWh'
+        excluded_cols = [target_col]  # Add any columns you want to exclude
+        
+        feature_cols = [col for col in df.columns if col not in excluded_cols]
+        print(f"Using all {len(feature_cols)} available features: {feature_cols}")
+        
+        # Continue with the rest of your training code
         train_df = df.loc['2018-01-01':'2022-12-31']
         val_df = df.loc['2023-01-01':'2023-12-31']
         test_df = df.loc['2024-01-01':'2024-12-31']
