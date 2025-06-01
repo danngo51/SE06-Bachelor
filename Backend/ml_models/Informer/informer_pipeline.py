@@ -100,15 +100,16 @@ class InformerPipeline(IModelPipeline):
         preprocessed = self.preprocess(data)
         if len(preprocessed) < self.seq_len:
             raise ValueError(f"Input data must have at least {self.seq_len} rows for prediction.")
+        
+        # Convert to correct dtype and format
         last_seq = preprocessed[-self.seq_len:].values
-        enc_x = torch.from_numpy(last_seq).unsqueeze(0).to(self.device)
+        enc_x = torch.from_numpy(last_seq).float().unsqueeze(0).to(self.device)  # Ensure float
 
-        # Prepare decoder input
-        dec_y = torch.zeros((1, self.label_len + self.pred_len), device=self.device)
+        # Prepare decoder input with correct dtype
+        dec_y = torch.zeros((1, self.label_len + self.pred_len), dtype=torch.float32, device=self.device)
         if self.label_len > 0 and len(preprocessed) >= self.label_len:
-            dec_y[0, :self.label_len] = torch.from_numpy(
-                preprocessed.iloc[-self.label_len:][self.feature_cols[-1]].values
-            )
+            label_input = preprocessed.iloc[-self.label_len:][self.feature_cols[-1]].values
+            dec_y[0, :self.label_len] = torch.from_numpy(label_input).float()  # Ensure float
 
         with torch.no_grad():
             output = self.model(enc_x, dec_y)

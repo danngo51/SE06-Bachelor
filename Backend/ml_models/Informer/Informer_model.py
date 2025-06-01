@@ -37,11 +37,18 @@ class Informer(nn.Module):
         self.proj = nn.Linear(d_model, 1)
 
     def forward(self, enc_x, dec_y=None):
+        # Ensure consistent dtypes
+        enc_x = enc_x.float()
+        
         if dec_y is None:
-            dec_y = torch.zeros((enc_x.shape[0], self.label_len + self.pred_len), device=enc_x.device)
+            dec_y = torch.zeros((enc_x.shape[0], self.label_len + self.pred_len), 
+                               dtype=torch.float32, device=enc_x.device)
             if self.label_len > 0 and enc_x.shape[1] >= self.label_len:
                 last_values = enc_x[:, -self.label_len:, -1]
                 dec_y[:, :self.label_len] = last_values
+        else:
+            dec_y = dec_y.float()  # Ensure float
+            
         enc_out = self.encoder(self.enc_emb(enc_x))
         dec_out = self.decoder(self.dec_emb(dec_y.unsqueeze(-1)), enc_out)
         return self.proj(dec_out).squeeze(-1)

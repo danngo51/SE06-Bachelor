@@ -1,0 +1,11 @@
+Feature,Importance (%)
+EP_lag_1,80.44049
+shortwave_radiation_lag1,1.1779709
+hour,1.1025374
+EP_lag_24,1.0779252
+Carbon_Emission_price_EUR,1.0565752
+shortwave_radiation,0.83639866
+shortwave_radiation_lag24,0.7789818
+Coal_price_EUR,0.63711643
+Carbon_Emission_price_EUR_lag_1d,0.62144446
+Natural_Gas_price_EUR,0.590128
