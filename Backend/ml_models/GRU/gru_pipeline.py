@@ -98,102 +98,135 @@ class GRUPipeline(IModelPipeline):
         print(f"Final preprocessed shape: {features.shape}")
         return features.reshape(1, self.seq_len, features.shape[1])
 
+    def load_model(self, model_path: Optional[str] = None) -> None:
+        """Load a pretrained GRU model and its associated data"""
+        try:
+            # Determine model directory
+            model_dir = pathlib.Path(model_path) if model_path else self.gru_dir
+            print(f"Looking for model in: {model_dir}")
+            
+            # Load model configuration first
+            config_file = model_dir / "model_config.pkl"
+            if config_file.exists():
+                model_config = joblib.load(config_file)
+                input_dim = model_config.get("input_dim")
+                hidden_dim = model_config.get("hidden_dim")
+                num_layers = model_config.get("num_layers")
+                output_dim = model_config.get("output_dim", self.pred_len)
+                bidirectional = model_config.get("bidirectional")
+                print(f"Loaded model configuration: {model_config}")
+            else:
+                raise FileNotFoundError(f"Model configuration not found at {config_file}")
+            
+            # Load feature columns
+            feature_cols_file = model_dir / "feature_columns.pkl"
+            if feature_cols_file.exists():
+                self.feature_cols = joblib.load(feature_cols_file)
+                print(f"Loaded {len(self.feature_cols)} feature columns")
+            else:
+                print("Warning: No feature columns file found")
+            
+            # Load scalers
+            scaler_features_file = model_dir / "scaler_features.pkl"
+            if scaler_features_file.exists():
+                self.scaler_features = joblib.load(scaler_features_file)
+                print(f"Loaded feature scaler with {self.scaler_features.n_features_in_} features")
+            else:
+                print("Warning: No feature scaler found")
+            
+            scaler_target_file = model_dir / "scaler_target.pkl"
+            if scaler_target_file.exists():
+                self.scaler_target = joblib.load(scaler_target_file)
+                print("Loaded target scaler")
+            else:
+                print("Warning: No target scaler found")
+            
+            # Initialize the model with the loaded configuration
+            from ml_models.GRU.GRU_model import GRUModel
+            self.model = GRUModel(
+                input_dim=input_dim,
+                hidden_dim=hidden_dim,
+                num_layers=num_layers,
+                output_dim=output_dim,
+                bidirectional=bidirectional
+            )
+            
+            # Load model weights
+            model_file = model_dir / "gru_model.pth"
+            if model_file.exists():
+                state_dict = torch.load(model_file, map_location=self.device)
+                self.model.load_state_dict(state_dict)
+                print(f"Loaded model weights from {model_file}")
+            else:
+                model_file = model_dir / "best_gru_model.pth"
+                if model_file.exists():
+                    state_dict = torch.load(model_file, map_location=self.device)
+                    self.model.load_state_dict(state_dict)
+                    print(f"Loaded best model weights from {model_file}")
+                else:
+                    raise FileNotFoundError(f"Model weights not found at {model_dir}")
+            
+            self.model.to(self.device)
+            self.model.eval()
+            print("Model loaded successfully and is ready for prediction")
+            
+        except Exception as e:
+            print(f"Error loading model: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise RuntimeError(f"Failed to load model: {str(e)}")
+
     def predict(self, data: Union[pd.DataFrame, np.ndarray]) -> np.ndarray:
+        """Make predictions using the loaded GRU model"""
         if self.model is None:
             raise ValueError("Model not loaded. Call load_model() first.")
-
-        if isinstance(data, pd.DataFrame):
-            try:
+        
+        print("Starting prediction process...")
+        
+        try:
+            # Convert DataFrame to preprocessed numpy array if needed
+            if isinstance(data, pd.DataFrame):
+                print(f"Preprocessing input DataFrame of shape {data.shape}")
                 data = self.preprocess(data)
-            except Exception as e:
-                raise ValueError(f"Error in preprocessing data: {str(e)}")
-
-        try:
+            
+            # Verify input shape
+            print(f"Input shape for prediction: {data.shape}")
+            
+            # Convert to tensor
             data_tensor = torch.FloatTensor(data).to(self.device)
+            
+            # Make prediction
+            self.model.eval()
             with torch.no_grad():
-                predictions = self.model(data_tensor).cpu().numpy()
+                print("Running model forward pass...")
+                predictions = self.model(data_tensor)
+                print(f"Raw prediction shape: {predictions.shape}")
+                predictions = predictions.cpu().numpy()
+        
+            # Apply inverse scaling if necessary
+            if self.scaler_target:
+                print("Applying inverse scaling to predictions...")
+                predictions = self.scaler_target.inverse_transform(predictions.reshape(-1, self.pred_len))
+                predictions = predictions.flatten()
+                
+                # Reverse log transform (if used during training)
+                print("Applying inverse log transform...")
+                predictions = np.expm1(predictions)
+                
+                # Reverse price shifting (if used during training)
+                # Note: You would need to know the shift value used during training
+                # If you stored it somewhere or can determine it, uncomment and use:
+                # predictions -= shift_value
+            
+            print(f"Final prediction shape: {predictions.shape}")
+            print(f"Prediction range: [{predictions.min():.2f}, {predictions.max():.2f}]")
+            return predictions
+            
         except Exception as e:
-            # Print shapes for debugging
-            print(f"Error during forward pass. Input shape: {data.shape}")
-            raise RuntimeError(f"Model prediction failed: {str(e)}")
-
-        if self.scaler_target:
-            try:
-                predictions = self.scaler_target.inverse_transform(predictions.reshape(-1, 1)).flatten()
-            except Exception as e:
-                raise RuntimeError(f"Error inverse transforming predictions: {str(e)}")
-
-        return predictions
-
-    def load_model(self, model_path: Optional[str] = None) -> None:
-        model_dir = pathlib.Path(model_path) if model_path else self.gru_dir
-        model_file = model_dir / "gru_model.pth"
-        if not model_file.exists():
-            raise FileNotFoundError(f"Model file not found: {model_file}")
-
-        # Load model parameters first to get correct dimensions
-        scaler_features_path = model_dir / "scaler_features.pkl"
-        scaler_target_path = model_dir / "scaler_target.pkl"
-        feature_cols_path = model_dir / "feature_columns.pkl"
-        model_config_path = model_dir / "model_config.pkl"
-
-        # Load feature columns first
-        if feature_cols_path.exists():
-            self.feature_cols = joblib.load(feature_cols_path)
-        else:
-            print("Warning: feature_columns.pkl not found. Using all numeric features.")
-        
-        # Load scalers
-        if scaler_features_path.exists():
-            self.scaler_features = joblib.load(scaler_features_path)
-        else:
-            print("Warning: scaler_features.pkl not found. Prediction accuracy may be affected.")
-        
-        if scaler_target_path.exists():
-            self.scaler_target = joblib.load(scaler_target_path)
-        else:
-            print("Warning: scaler_target.pkl not found. Prediction scaling will be disabled.")
-        
-        # Load model configuration or use default
-        if model_config_path.exists():
-            config = joblib.load(model_config_path)
-            input_dim = config.get("input_dim", 64)
-            hidden_dim = config.get("hidden_dim", 128)
-            num_layers = config.get("num_layers", 2)
-            bidirectional = config.get("bidirectional", False)
-            print(f"Loaded model config: input_dim={input_dim}, hidden_dim={hidden_dim}, "
-                  f"num_layers={num_layers}, bidirectional={bidirectional}")
-        else:
-            # Determine input dimensions from feature columns
-            if self.feature_cols is not None:
-                input_dim = len(self.feature_cols)
-            else:
-                input_dim = 64  # Default fallback
-                print("Warning: Unable to determine input dimension. Using default: 64")
-            hidden_dim = 128
-            num_layers = 2
-            bidirectional = False
-            print(f"Using default model configuration: input_dim={input_dim}, hidden_dim={hidden_dim}, "
-                  f"num_layers={num_layers}, bidirectional={bidirectional}")
-
-        # Initialize model with proper dimensions
-        self.model = GRUModel(
-            input_dim=input_dim,
-            hidden_dim=hidden_dim,
-            num_layers=num_layers,
-            output_dim=self.pred_len,
-            bidirectional=bidirectional
-        )
-        
-        # Load pre-trained weights
-        try:
-            self.model.load_state_dict(torch.load(model_file, map_location=self.device))
-            print(f"Successfully loaded model from {model_file}")
-        except Exception as e:
-            raise RuntimeError(f"Error loading model weights: {str(e)}")
-        
-        self.model.to(self.device)
-        self.model.eval()
+            print(f"Error during prediction: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise RuntimeError(f"Prediction failed: {str(e)}")
 
     def predict_from_file(self, file_path: str, date_str: Optional[str] = None) -> pd.DataFrame:
         df = pd.read_csv(file_path, parse_dates=['date'])
