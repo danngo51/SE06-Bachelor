@@ -118,18 +118,18 @@ class TimeSeriesDataset(Dataset):
         return self.sequences[idx], self.targets[idx]
 
 class GRUModelTrainer:
-    def __init__(self, mapcode="DK1", seq_len=168, pred_len=24, batch_size=32, learning_rate=0.0005, 
-             num_epochs=100, patience=15):
+    def __init__(self, mapcode="DK1", seq_len=168, pred_len=24, batch_size=64, learning_rate=0.001, 
+         num_epochs=50, patience=10):
         self.mapcode = mapcode
         self.seq_len = seq_len
         self.pred_len = pred_len
-        self.batch_size = batch_size  # Smaller batch size for better generalization
-        self.learning_rate = learning_rate  # Lower learning rate
-        self.num_epochs = num_epochs  # More epochs with early stopping
-        self.patience = patience  # Increased patience
+        self.batch_size = batch_size  # Larger batch size for faster training
+        self.learning_rate = learning_rate  # Higher learning rate
+        self.num_epochs = num_epochs  # Fewer epochs
+        self.patience = patience  # Less patience
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.hidden_dim = 256  # Increased hidden dimension
-        self.num_layers = 3  # More layers
+        self.hidden_dim = 128  # Reduced hidden dimension
+        self.num_layers = 2  # Fewer layers
         self.dropout = 0.3  # Add dropout rate
         self.bidirectional = True
         self.model = None
@@ -214,8 +214,8 @@ class GRUModelTrainer:
             TimeSeriesDataset(train_sequences, train_targets), 
             batch_size=self.batch_size, 
             shuffle=True,
-            num_workers=2,
-            pin_memory=True
+            num_workers=0,  # Disable multi-worker loading
+            pin_memory=False  # Disable pinned memory
         )
         val_loader = DataLoader(TimeSeriesDataset(val_sequences, val_targets), batch_size=self.batch_size, shuffle=False)
         test_loader = DataLoader(TimeSeriesDataset(test_sequences, test_targets), batch_size=self.batch_size, shuffle=False)
@@ -226,8 +226,8 @@ class GRUModelTrainer:
             self.hidden_dim, 
             self.num_layers, 
             self.pred_len, 
-            dropout=self.dropout,
-            bidirectional=self.bidirectional
+            dropout=0.2,  # Lower dropout
+            bidirectional=False  # Disable bidirectional (much faster)
         ).to(self.device)
         
         # Use a combination of L1 and L2 loss for better handling of outliers
@@ -242,15 +242,11 @@ class GRUModelTrainer:
             eps=1e-8
         )
         
-        # Use OneCycleLR scheduler which converges faster and generalizes better
-        scheduler = optim.lr_scheduler.OneCycleLR(
-            optimizer, 
-            max_lr=self.learning_rate * 10,
-            epochs=self.num_epochs,
-            steps_per_epoch=len(train_loader),
-            pct_start=0.3,  # Warm up for the first 30% of training
-            div_factor=25,
-            final_div_factor=1000
+        # Simple step learning rate scheduler
+        scheduler = optim.lr_scheduler.StepLR(
+            optimizer,
+            step_size=5,
+            gamma=0.5
         )
 
         # Enable logging
@@ -272,7 +268,6 @@ class GRUModelTrainer:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                 
                 optimizer.step()
-                scheduler.step()  # Update learning rate each step for OneCycleLR
                 train_loss += loss.item()
             train_loss /= len(train_loader)
 
@@ -304,6 +299,9 @@ class GRUModelTrainer:
                     print(log_message)
                     log_file.write(log_message + "\n")
                     break
+
+            # Update the learning rate scheduler
+            scheduler.step()  # Only call once per epoch
 
         # Close log file
         log_file.close()
@@ -364,55 +362,5 @@ class GRUModelTrainer:
         self.save_model()
 
     def augment_training_data(self, sequences, targets):
-        """Apply enhanced data augmentation techniques for time series"""
-        augmented_sequences = []
-        augmented_targets = []
-        
-        # Original data
-        augmented_sequences.append(sequences)
-        augmented_targets.append(targets)
-        
-        # 1. Add Gaussian noise (only to sequences, not targets)
-        noise_sequences = sequences.copy()
-        noise = 0.02 * np.random.normal(0, 1, noise_sequences.shape)
-        noise_sequences += noise
-        augmented_sequences.append(noise_sequences)
-        augmented_targets.append(targets.copy())
-        
-        # 2. Time warping: slightly scale the time dimension
-        # Only use a single scale factor to avoid generating too much data
-        for scale in [0.98]:
-            warped_sequences = []
-            for seq in sequences:
-                # Apply scaling by interpolation
-                x = np.linspace(0, 1, len(seq))
-                x_warped = np.linspace(0, 1, int(len(seq) * scale))
-                warped_seq = np.stack([np.interp(x_warped, x, seq[:, i]) for i in range(seq.shape[1])], axis=1)
-                
-                # Resize back to original shape
-                if scale < 1.0:
-                    # Pad if warped sequence is shorter
-                    pad_length = seq.shape[0] - warped_seq.shape[0]
-                    warped_seq = np.pad(warped_seq, ((0, pad_length), (0, 0)), mode='edge')
-                else:
-                    # Trim if warped sequence is longer
-                    warped_seq = warped_seq[:seq.shape[0], :]
-                    
-                warped_sequences.append(warped_seq)
-            
-            augmented_sequences.append(np.array(warped_sequences))
-            augmented_targets.append(targets.copy())
-        
-        # 3. Magnitude warping: more conservative scale
-        scale_factor = np.random.uniform(0.98, 1.02, size=(1, 1, sequences.shape[2]))
-        scale_sequences = sequences.copy() * scale_factor
-        augmented_sequences.append(scale_sequences)
-        augmented_targets.append(targets.copy())
-        
-        # Combine all augmented data
-        combined_sequences = np.vstack(augmented_sequences)
-        combined_targets = np.vstack(augmented_targets)
-        
-        print(f"Augmented data: {len(sequences)} original sequences -> {len(combined_sequences)} total sequences")
-        
-        return combined_sequences, combined_targets
+        """Minimal augmentation for speed"""
+        return sequences, targets  # No augmentation at all for faster training
