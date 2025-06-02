@@ -6,7 +6,7 @@ project_root = pathlib.Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
 from ml_models.XGBoost.XGBoost_model import XGBoostRegimeModel
-from ml_models.GRU.GRU_model import GRUModelTrainer
+from ml_models.GRU.GRU_model import GRUTrainer
 from ml_models.Informer.Informer_model import InformerModelTrainer
 
 def train_xgboost(country_code):
@@ -29,7 +29,7 @@ def train_xgboost(country_code):
     return bool(results)
 
 def train_gru(country_code):
-    trainer = GRUModelTrainer(mapcode=country_code, seq_len=168, pred_len=24)
+    trainer = GRUTrainer(mapcode=country_code, seq_len=168, pred_len=24)
     training_file = f"{country_code}_full_data_2018_2024.csv"
     training_path = trainer.data_dir / training_file
 
