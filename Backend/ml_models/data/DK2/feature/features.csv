@@ -1,0 +1,11 @@
+Feature,Importance (%)
+EP_lag_1,77.14637
+hour,1.4040527
+Natural_Gas_price_EUR,1.2777716
+EP_lag_24,1.1979039
+shortwave_radiation_lag1,1.076299
+shortwave_radiation_lag24,1.0601087
+Coal_price_EUR_lag_1d,0.8754878
+Oil_price_EUR,0.8299717
+Coal_price_EUR,0.821154
+shortwave_radiation,0.795217

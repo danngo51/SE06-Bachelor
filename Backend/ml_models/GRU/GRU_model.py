@@ -54,6 +54,10 @@ class GRUTrainer:
     def load_dataset(self, csv_path: str, val_split=0.2):
         df = pd.read_csv(csv_path, parse_dates=['date'])
         df = df.drop(columns=['date'])  # keep only numeric features
+        # Make sure price is the first column before normalization
+        price_col = "Electricity_price_MWh"
+        cols = [price_col] + [col for col in df.columns if col != price_col and col != 'date']
+        df = df[cols]
         scaler = StandardScaler()
         values = scaler.fit_transform(df.values)
         

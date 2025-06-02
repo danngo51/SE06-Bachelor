@@ -2,6 +2,8 @@
 Test script for the hybrid model and pipeline structure.
 """
 
+import contextlib
+from io import StringIO
 import os
 import sys
 import pathlib
@@ -163,6 +165,34 @@ def test_prediction_service(
     except Exception as e:
         print(f"Error in prediction service: {e}")
 
+def run_with_optional_logging(action_fn, args, label: str = "test"):
+    """
+    Runs the given action function with optional output logging.
+
+    Args:
+        action_fn: Function to run (no arguments).
+        args: Parsed argparse arguments.
+        label: Descriptive label for filename generation.
+    """
+    results_dir = pathlib.Path(__file__).parent / "test-results"
+    results_dir.mkdir(exist_ok=True)
+
+    buffer = StringIO()
+    writer = contextlib.redirect_stdout(buffer) if args.print else contextlib.nullcontext()
+
+    with writer:
+        action_fn()
+
+    if args.print:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        country_str = "_".join(args.countries)
+        date_str = args.date if args.date else "today"
+        filename = f"{timestamp}_{label}_{country_str}_{date_str}.txt"
+        file_path = results_dir / filename
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(buffer.getvalue())
+        print(f"\n📄 Output saved to {file_path}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Test the hybrid price prediction model.")
@@ -178,36 +208,39 @@ if __name__ == "__main__":
                         help="Weight for Informer model")
     parser.add_argument("--hybrid", "-y", action="store_true", 
                         help="Use direct hybrid interface instead of service layer")
-    
+    parser.add_argument("--print", "-p", action="store_true", 
+                        help="Save printed output to a text file in test-results")
 
     args = parser.parse_args()
 
-    # Set and normalize weights
+    # Normalize weights
     weights = {
         "xgboost": args.xgboost_weight,
         "gru": args.gru_weight,
         "informer": args.informer_weight
     }
-    
-    weight_sum = sum(weights.values())
-    for k in weights:
-        weights[k] = weights[k] / weight_sum
+    total_weight = sum(weights.values())
+    for key in weights:
+        weights[key] /= total_weight
+
+    # Define what to run inside the logging wrapper
+    def run_test():
+        print("Testing Hybrid Model")
+        print("===================")
         
-    print("Testing Hybrid Model")
-    print("===================")
-    
-    if args.hybrid:
-        # When using pipeline, just test the first country with the direct interface
-        test_hybrid_model_direct(args.countries[0], args.date, weights)
-        if len(args.countries) > 1:
-            print("\nNote: When using direct pipeline interface, only the first country is tested.")
-    else:
-        # By default, use the service layer to test all specified countries
-        print(f"Testing prediction service for countries: {', '.join(args.countries)}")
-        test_prediction_service(args.countries, args.date, weights)
+        if args.hybrid:
+            test_hybrid_model_direct(args.countries[0], args.date, weights)
+            if len(args.countries) > 1:
+                print("\nNote: When using direct pipeline interface, only the first country is tested.")
+        else:
+            print(f"Testing prediction service for countries: {', '.join(args.countries)}")
+            test_prediction_service(args.countries, args.date, weights)
         
-    print("\nUsage examples:")
-    print("  python -m scripts.test_hybrid_model -c DK1 DK2 -d 2024-05-24")
-    print("  python -m scripts.test_hybrid_model --countries DK1 SE1 --date 2024-05-24 --hybrid")
-    print("  python -m scripts.test_hybrid_model -c DK1 -x 0.5 -g 0.25 -i 0.25 -y")
-    print("  python -m scripts.test_hybrid_model --country DK1 -xgboost-weight 0.5 -gru-weight 0.25 -informer-weight 0.25 -hybrid")
+        print("\nUsage examples:")
+        print("  python -m scripts.test_hybrid_model -c DK1 DK2 -d 2024-05-24")
+        print("  python -m scripts.test_hybrid_model --countries DK1 SE1 --date 2024-05-24 --hybrid")
+        print("  python -m scripts.test_hybrid_model -c DK1 -x 0.5 -g 0.25 -i 0.25 -y")
+        print("  python -m scripts.test_hybrid_model --country DK1 -xgboost-weight 0.5 -gru-weight 0.25 -informer-weight 0.25 -hybrid")
+
+    # Run with or without output logging
+    run_with_optional_logging(run_test, args, label="hybrid-test")
