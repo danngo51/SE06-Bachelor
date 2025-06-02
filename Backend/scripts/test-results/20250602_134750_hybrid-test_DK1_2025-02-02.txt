@@ -1,0 +1,88 @@
+Testing Hybrid Model
+===================
+Testing prediction service for countries: DK1
+
+Testing prediction service for DK1 on 2025-02-02...
+Using weights: {'xgboost': 0.4, 'gru': 0.3, 'informer': 0.3}
+🔮 Generating predictions for DK1 with hybrid model
+
+Predicting for DK1 on 2025-02-02 with weights: {'xgboost': 0.4, 'gru': 0.3, 'informer': 0.3}
+Scaler loaded successfully from D:\Skole Projekter\6. sem\se06-Bachelor\Backend\ml_models\data\DK1\gru\scaler.pkl
+Detected model parameters - input_size: 56, hidden_size: 64, num_layers: 2
+Model loaded successfully from D:\Skole Projekter\6. sem\se06-Bachelor\Backend\ml_models\data\DK1\gru\gru_model.pth
+predict_from_file - gru pipe
+Preprocessed tensor shape: torch.Size([1, 168, 56])
+Input tensor shape before prediction: torch.Size([1, 168, 56])
+Raw model output: [-0.10, 0.25]
+After inverse transform: [72.82, 104.38]
+Applying advanced adaptive correction
+Pattern correlation: -0.29
+Using enhanced pattern-guided correction (poor correlation)
+After correction: [51.20, 182.40]
+Prediction type: <class 'pandas.core.series.Series'>, shape or length: 24
+Result DataFrame shape: (24, 2)
+Error loading Informer model: Informer model file not found: D:\Skole Projekter\6. sem\se06-Bachelor\Backend\ml_models\data\DK1\informer\best_informer.pt
+Error getting Informer predictions: Model not loaded. Call load_model() first.
+Creating ensemble prediction using 2 models: XGBoost, GRU
+Received predictions for 1 countries
+
+Country: DK1
+Date: 2025-02-02
+Hours with predictions: 24
+  Hour 0: GRU=88.00, XGBoost=124.26, Model=108.72, Actual=126.91
+  Hour 1: GRU=72.00, XGBoost=120.86, Model=99.92, Actual=122.99
+  Hour 2: GRU=76.80, XGBoost=120.90, Model=102.00, Actual=120.66
+  Hour 3: GRU=56.00, XGBoost=120.57, Model=92.90, Actual=122.34
+  Hour 4: GRU=51.20, XGBoost=122.79, Model=92.11, Actual=123.41
+  Hour 5: GRU=76.00, XGBoost=125.25, Model=104.15, Actual=128.09
+  Hour 6: GRU=104.00, XGBoost=131.92, Model=119.95, Actual=135.9
+  Hour 7: GRU=153.60, XGBoost=135.56, Model=143.29, Actual=137.3
+  Hour 8: GRU=120.00, XGBoost=133.02, Model=127.44, Actual=137.7
+  Hour 9: GRU=104.00, XGBoost=122.48, Model=114.56, Actual=130.04
+  Hour 10: GRU=96.00, XGBoost=116.87, Model=107.92, Actual=129.33
+  Hour 11: GRU=73.60, XGBoost=116.73, Model=98.25, Actual=122.24
+  Hour 12: GRU=105.60, XGBoost=113.32, Model=110.01, Actual=111.88
+  Hour 13: GRU=115.20, XGBoost=112.11, Model=113.44, Actual=116.42
+  Hour 14: GRU=83.20, XGBoost=123.91, Model=106.46, Actual=127.97
+  Hour 15: GRU=96.00, XGBoost=139.79, Model=121.03, Actual=151.21
+  Hour 16: GRU=136.00, XGBoost=159.50, Model=149.43, Actual=164.03
+  Hour 17: GRU=182.40, XGBoost=153.92, Model=166.13, Actual=172.49
+  Hour 18: GRU=144.00, XGBoost=135.67, Model=139.24, Actual=173.95
+  Hour 19: GRU=102.40, XGBoost=137.80, Model=122.63, Actual=165.06
+  Hour 20: GRU=89.60, XGBoost=145.98, Model=121.82, Actual=145.93
+  Hour 21: GRU=104.00, XGBoost=132.38, Model=120.22, Actual=123.15
+  Hour 22: GRU=76.80, XGBoost=113.67, Model=97.87, Actual=121.7
+  Hour 23: GRU=70.40, XGBoost=115.14, Model=95.96, Actual=125.3
+
+Model Performance vs Actual for DK1:
+  Hour 0: GRU: -38.9/-30.7%, XGBoost: -2.6/-2.1%, Model: -18.2/-14.3%
+  Hour 1: GRU: -51.0/-41.5%, XGBoost: -2.1/-1.7%, Model: -23.1/-18.8%
+  Hour 2: GRU: -43.9/-36.4%, XGBoost: +0.2/+0.2%, Model: -18.7/-15.5%
+  Hour 3: GRU: -66.3/-54.2%, XGBoost: -1.8/-1.4%, Model: -29.4/-24.1%
+  Hour 4: GRU: -72.2/-58.5%, XGBoost: -0.6/-0.5%, Model: -31.3/-25.4%
+  Hour 5: GRU: -52.1/-40.7%, XGBoost: -2.8/-2.2%, Model: -23.9/-18.7%
+  Hour 6: GRU: -31.9/-23.5%, XGBoost: -4.0/-2.9%, Model: -16.0/-11.7%
+  Hour 7: GRU: +16.3/+11.9%, XGBoost: -1.7/-1.3%, Model: +6.0/+4.4%
+  Hour 8: GRU: -17.7/-12.9%, XGBoost: -4.7/-3.4%, Model: -10.3/-7.5%
+  Hour 9: GRU: -26.0/-20.0%, XGBoost: -7.6/-5.8%, Model: -15.5/-11.9%
+  Hour 10: GRU: -33.3/-25.8%, XGBoost: -12.5/-9.6%, Model: -21.4/-16.6%
+  Hour 11: GRU: -48.6/-39.8%, XGBoost: -5.5/-4.5%, Model: -24.0/-19.6%
+  Hour 12: GRU: -6.3/-5.6%, XGBoost: +1.4/+1.3%, Model: -1.9/-1.7%
+  Hour 13: GRU: -1.2/-1.0%, XGBoost: -4.3/-3.7%, Model: -3.0/-2.6%
+  Hour 14: GRU: -44.8/-35.0%, XGBoost: -4.1/-3.2%, Model: -21.5/-16.8%
+  Hour 15: GRU: -55.2/-36.5%, XGBoost: -11.4/-7.6%, Model: -30.2/-20.0%
+  Hour 16: GRU: -28.0/-17.1%, XGBoost: -4.5/-2.8%, Model: -14.6/-8.9%
+  Hour 17: GRU: +9.9/+5.7%, XGBoost: -18.6/-10.8%, Model: -6.4/-3.7%
+  Hour 18: GRU: -29.9/-17.2%, XGBoost: -38.3/-22.0%, Model: -34.7/-20.0%
+  Hour 19: GRU: -62.7/-38.0%, XGBoost: -27.3/-16.5%, Model: -42.4/-25.7%
+  Hour 20: GRU: -56.3/-38.6%, XGBoost: +0.0/+0.0%, Model: -24.1/-16.5%
+  Hour 21: GRU: -19.2/-15.6%, XGBoost: +9.2/+7.5%, Model: -2.9/-2.4%
+  Hour 22: GRU: -44.9/-36.9%, XGBoost: -8.0/-6.6%, Model: -23.8/-19.6%
+  Hour 23: GRU: -54.9/-43.8%, XGBoost: -10.2/-8.1%, Model: -29.3/-23.4%
+Prediction service test successful!
+
+Usage examples:
+  python -m scripts.test_hybrid_model -c DK1 DK2 -d 2024-05-24
+  python -m scripts.test_hybrid_model --countries DK1 SE1 --date 2024-05-24 --hybrid
+  python -m scripts.test_hybrid_model -c DK1 -x 0.5 -g 0.25 -i 0.25 -y
+  python -m scripts.test_hybrid_model --country DK1 -xgboost-weight 0.5 -gru-weight 0.25 -informer-weight 0.25 -hybrid

@@ -123,7 +123,7 @@ def test_prediction_service(
                 hour_str = str(hour)
                 if hour_str in country_data.hourly_data:
                     hour_data = country_data.hourly_data[hour_str]
-                    print(f"  Hour {hour}: Informer={hour_data.informer:.2f}, "
+                    print(f"  Hour {hour}: "
                           f"GRU={hour_data.gru:.2f}, "
                           f"XGBoost={hour_data.xgboost:.2f}, "
                           f"Model={hour_data.model:.2f}, "
@@ -138,12 +138,10 @@ def test_prediction_service(
                         actual = hour_data.actual_price
                         
                         # Calculate differences and percentages
-                        informer_diff = hour_data.informer - actual
                         gru_diff = hour_data.gru - actual
                         xgboost_diff = hour_data.xgboost - actual
                         model_diff = hour_data.model - actual
                         
-                        informer_pct = (informer_diff / actual) * 100 if actual != 0 else 0
                         gru_pct = (gru_diff / actual) * 100 if actual != 0 else 0
                         xgboost_pct = (xgboost_diff / actual) * 100 if actual != 0 else 0
                         model_pct = (model_diff / actual) * 100 if actual != 0 else 0
@@ -154,7 +152,7 @@ def test_prediction_service(
                             pct_sign = "+" if pct >= 0 else ""
                             return f"{diff_sign}{diff:.1f}/{pct_sign}{pct:.1f}%"
                         
-                        print(f"  Hour {hour}: Informer: {format_diff_pct(informer_diff, informer_pct)}, "
+                        print(f"  Hour {hour}: "
                               f"GRU: {format_diff_pct(gru_diff, gru_pct)}, "
                               f"XGBoost: {format_diff_pct(xgboost_diff, xgboost_pct)}, "
                               f"Model: {format_diff_pct(model_diff, model_pct)}")

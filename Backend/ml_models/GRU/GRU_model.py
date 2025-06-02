@@ -30,7 +30,7 @@ class GRUTrainer:
         self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
         self.lr = lr
         self.model = None
-        self.num_epochs = 50
+        self.num_epochs = 200
         self.patience = 10
 
         current_file = pathlib.Path(__file__)
