@@ -62,30 +62,29 @@ class HybridModel:
         
         return pipeline
     
-    def load_gru_pipeline(self, country_code: str) -> GRUPipeline:
-        """
-        Load GRU pipeline for a specific country code.
-        
-        Args:
-            country_code: Country code (e.g., "DK1")
+    def load_gru_pipeline(self, country_code: str):
+        try:
+            gru_name = f"gru_{country_code}"
             
-        Returns:
-            Loaded GRU pipeline
-        """
-        # Initialize pipeline
-        pipeline = GRUPipeline(mapcode=country_code)
-        
-        # Load model
-        data_dir = self.data_dir / country_code
-        gru_dir = data_dir / "gru"
-        pipeline.load_model(str(gru_dir))
-        
-        # Add to pipelines dictionary
-        pipeline_name = f"gru_{country_code}"
-        self.add_pipeline(pipeline_name, pipeline)
-        
-        return pipeline
-    
+            # Get the model path directly
+            current_file = pathlib.Path(__file__)
+            project_root = current_file.parent
+            model_file = project_root / "data" / country_code / "gru" / "gru_model.pth"
+            
+            # Check if model file exists without accessing directory
+            if os.path.isfile(model_file):
+                pipeline = GRUPipeline(mapcode=country_code, model_path=str(model_file))
+                self.pipelines[gru_name] = pipeline
+                return pipeline
+            else:
+                print(f"GRU model file not found: {model_file}")
+                return None
+        except Exception as e:
+            print(f"Error loading GRU pipeline: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
     def load_informer_pipeline(self, country_code: str) -> InformerPipeline:
         """
         Load Informer pipeline for a specific country code.
