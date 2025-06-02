@@ -1,0 +1,14 @@
+Epoch 1/50 - Train Loss: 0.3352, Val Loss: 0.3921
+Epoch 2/50 - Train Loss: 0.2559, Val Loss: 0.4191
+Epoch 3/50 - Train Loss: 0.2199, Val Loss: 0.5298
+Epoch 4/50 - Train Loss: 0.1896, Val Loss: 0.5058
+Epoch 5/50 - Train Loss: 0.1736, Val Loss: 0.5370
+Epoch 6/50 - Train Loss: 0.1549, Val Loss: 0.5516
+Epoch 7/50 - Train Loss: 0.1498, Val Loss: 0.5201
+Epoch 8/50 - Train Loss: 0.1459, Val Loss: 0.5247
+Epoch 9/50 - Train Loss: 0.1430, Val Loss: 0.5284
+Epoch 10/50 - Train Loss: 0.1402, Val Loss: 0.5300
+Epoch 11/50 - Train Loss: 0.1341, Val Loss: 0.5415
+Early stopping triggered.
+Test Loss: 0.5130
+Test metrics: RMSE: 49.1371, MAE: 34.0534, R²: 0.2912
