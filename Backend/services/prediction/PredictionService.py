@@ -143,9 +143,9 @@ class PredictionService(IPredictionService):
         weights = request.weights
         if weights is None:
             weights = {
-                "xgboost": 0.4,
-                "gru": 0.3,
-                "informer": 0.3
+                "xgboost": 0.5,
+                "gru": 0.5,
+                "informer": 0.0
             }
         
         # Create a dictionary to hold predictions by country code

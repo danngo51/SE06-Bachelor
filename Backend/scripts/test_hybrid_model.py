@@ -92,9 +92,9 @@ def test_prediction_service(
     # Set default weights if not provided
     if weights is None:
         weights = {
-            "xgboost": 0.4,
-            "gru": 0.3,
-            "informer": 0.3
+            "xgboost": 0.6,
+            "gru": 0.4,
+            "informer": 0.0
         }
 
     print(f"\nTesting prediction service for {', '.join(country_codes)} on {prediction_date}...")
@@ -198,11 +198,11 @@ if __name__ == "__main__":
                         help="One or more country codes to test")
     parser.add_argument("--date", "-d", type=str, 
                         help="Date to predict (YYYY-MM-DD)")
-    parser.add_argument("--xgboost-weight", "-x", type=float, default=0.4, 
+    parser.add_argument("--xgboost-weight", "-x", type=float, default=0.6, 
                         help="Weight for XGBoost model")
-    parser.add_argument("--gru-weight", "-g", type=float, default=0.3, 
+    parser.add_argument("--gru-weight", "-g", type=float, default=0.4, 
                         help="Weight for GRU model")
-    parser.add_argument("--informer-weight", "-i", type=float, default=0.3, 
+    parser.add_argument("--informer-weight", "-i", type=float, default=0.0, 
                         help="Weight for Informer model")
     parser.add_argument("--hybrid", "-y", action="store_true", 
                         help="Use direct hybrid interface instead of service layer")

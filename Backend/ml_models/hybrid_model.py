@@ -133,9 +133,9 @@ class HybridModel:
         # Set default weights if not provided
         if weights is None:
             weights = {
-                "xgboost": 0.4,
-                "gru": 0.3,
-                "informer": 0.3
+                "xgboost": 0.5,
+                "gru": 0.5,
+                "informer": 0.0
             }
         print(f"\nPredicting for {country_code} on {prediction_date} with weights: {weights}")
         # Check if we have pipelines for this country, load them if not

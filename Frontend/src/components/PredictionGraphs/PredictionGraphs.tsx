@@ -31,7 +31,6 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
   const [activeGraph, setActiveGraph] = useState<'line' | 'bar'>('line');
   
   // Track which models to display with individual toggles
-  const [showInformer, setShowInformer] = useState<boolean>(true);
   const [showGru, setShowGru] = useState<boolean>(true);
   const [showXGBoost, setShowXGBoost] = useState<boolean>(false); // XGBoost is not used in the current implementation
   const [showCombined, setShowCombined] = useState<boolean>(true);
@@ -55,7 +54,6 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
     
     return {
       time: timestamp,
-      [PREDICTION_DATA_SERIES.INFORMER_MODEL]: hourData[PREDICTION_DATA_SERIES.INFORMER_MODEL as keyof HourlyPredictionData] || 0,
       [PREDICTION_DATA_SERIES.GRU_MODEL]: hourData[PREDICTION_DATA_SERIES.GRU_MODEL as keyof HourlyPredictionData] || 0,
       [PREDICTION_DATA_SERIES.XGBOOST]: hourData[PREDICTION_DATA_SERIES.XGBOOST as keyof HourlyPredictionData] || 0,
       [PREDICTION_DATA_SERIES.PREDICTION_MODEL]: hourData[PREDICTION_DATA_SERIES.PREDICTION_MODEL as keyof HourlyPredictionData] || 0,
@@ -66,7 +64,6 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
 
   // Helper function to toggle all graphs
   const toggleAllGraphs = (show: boolean) => {
-    setShowInformer(show);
     setShowGru(show);
     setShowXGBoost(show);
     setShowCombined(show);
@@ -109,13 +106,13 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
           <div>
             <button 
               onClick={() => toggleAllGraphs(true)}
-              className={`${styles.smallButton} ${showInformer && showGru && showXGBoost && showCombined && showActual ? styles.active : ''}`}
+              className={`${styles.smallButton} ${showGru && showXGBoost && showCombined && showActual ? styles.active : ''}`}
             >
               Show All
             </button>
             <button 
               onClick={() => toggleAllGraphs(false)}
-              className={`${styles.smallButton} ${!showInformer && !showGru && !showXGBoost && !showCombined && !showActual ? styles.active : ''}`}
+              className={`${styles.smallButton} ${!showGru && !showXGBoost && !showCombined && !showActual ? styles.active : ''}`}
             >
               Hide All
             </button>
@@ -123,15 +120,6 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
         </div>
 
         <div className={styles.checkboxContainer}>
-          <label className={styles.checkboxLabel}>
-            <input
-              type="checkbox"
-              checked={showInformer}
-              onChange={() => setShowInformer(!showInformer)}
-            />
-            <span className={styles.modelInformer}>Informer</span>
-          </label>
-          
           <label className={styles.checkboxLabel}>
             <input
               type="checkbox"
@@ -186,17 +174,6 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
               labelFormatter={(hour) => `Hour: ${hour}:00`}
               />
               <Legend />
-              {showInformer && (
-              <Line 
-                type="monotone" 
-                dataKey={PREDICTION_DATA_SERIES.INFORMER_MODEL} 
-                stroke="#FF8C00" 
-                name="Informer"
-                strokeWidth={1.5}
-                dot={{ strokeWidth: 1, r: 2 }}
-                activeDot={{ r: 6 }} 
-              />
-              )}
               {showGru && (
               <Line 
                 type="monotone" 
@@ -256,9 +233,6 @@ const PredictionGraphs: React.FC<PredictionGraphsProps> = ({
                 labelFormatter={(hour) => `Hour: ${hour}:00`}
               />
               <Legend />
-              {showInformer && (
-                <Bar dataKey={PREDICTION_DATA_SERIES.INFORMER_MODEL} fill="#FF8C00" name="Informer" />
-              )}
               {showGru && (
                 <Bar dataKey={PREDICTION_DATA_SERIES.GRU_MODEL} fill="#8A2BE2" name="GRU" />
               )}              {showXGBoost && (
