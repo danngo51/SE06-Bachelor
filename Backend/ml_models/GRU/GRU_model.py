@@ -147,20 +147,42 @@ class GRUModelTrainer:
         feature_cols = [col for col in df.columns if col not in ['date', 'Electricity_price_MWh']]
         features = df[feature_cols].values
         target = df['Electricity_price_MWh'].values
+        
+        # Add debug info
+        print(f"Feature shape: {features.shape}, Target shape: {target.shape}")
+        print(f"Feature range: [{features.min():.4f}, {features.max():.4f}]")
+        print(f"Target range: [{target.min():.4f}, {target.max():.4f}]")
+        
         sequences, targets = [], []
         for i in range(len(df) - self.seq_len - self.pred_len + 1):
             sequences.append(features[i:i + self.seq_len])
             targets.append(target[i + self.seq_len:i + self.seq_len + self.pred_len])
-        return np.array(sequences), np.array(targets), feature_cols
+        
+        seqs_np = np.array(sequences)
+        targets_np = np.array(targets)
+        
+        print(f"Created {len(sequences)} sequences of shape {seqs_np.shape}")
+        print(f"Created {len(targets)} targets of shape {targets_np.shape}")
+        
+        return seqs_np, targets_np, feature_cols
 
     def train(self, train_file):
         df = pd.read_csv(train_file, parse_dates=['date'], index_col='date').dropna()
         feature_cols = [c for c in df.columns if c != 'Electricity_price_MWh']
         target_col = 'Electricity_price_MWh'
         
-        # Log-transform the target to stabilize variance
+        # Handle negative prices before log transform
+        min_price = df['Electricity_price_MWh'].min()
+        
+        # If we have negative or zero values, shift all prices to make them positive
+        if min_price <= 0:
+            shift_value = abs(min_price) + 1  # Add 1 to ensure all values are positive
+            print(f"Shifting electricity prices by {shift_value} to handle negative/zero values")
+            df['Electricity_price_MWh'] = df['Electricity_price_MWh'] + shift_value
+        
+        # Now apply log transform (all values should be positive)
         df['Electricity_price_MWh'] = np.log1p(df['Electricity_price_MWh'])
-
+        
         # Split data with rolling-window validation to maintain time series integrity
         cutoff_val = int(len(df) * 0.8)
         cutoff_test = int(len(df) * 0.9)
@@ -312,9 +334,15 @@ class GRUModelTrainer:
         all_predictions = self.scaler_target.inverse_transform(all_predictions)
         all_targets = self.scaler_target.inverse_transform(all_targets)
         
-        # Reverse log transformation
+        # Reverse log transformation and price shifting
         all_predictions = np.expm1(all_predictions)
         all_targets = np.expm1(all_targets)
+
+        # If we shifted the prices before, we need to shift them back
+        if min_price <= 0:
+            shift_value = abs(min_price) + 1
+            all_predictions -= shift_value
+            all_targets -= shift_value
 
         # Calculate metrics
         mse = mean_squared_error(all_targets.flatten(), all_predictions.flatten())
@@ -344,15 +372,16 @@ class GRUModelTrainer:
         augmented_sequences.append(sequences)
         augmented_targets.append(targets)
         
-        # 1. Add Gaussian noise
+        # 1. Add Gaussian noise (only to sequences, not targets)
         noise_sequences = sequences.copy()
-        noise = 0.03 * np.random.normal(0, 1, noise_sequences.shape)
+        noise = 0.02 * np.random.normal(0, 1, noise_sequences.shape)
         noise_sequences += noise
         augmented_sequences.append(noise_sequences)
         augmented_targets.append(targets.copy())
         
         # 2. Time warping: slightly scale the time dimension
-        for scale in [0.95, 1.05]:
+        # Only use a single scale factor to avoid generating too much data
+        for scale in [0.98]:
             warped_sequences = []
             for seq in sequences:
                 # Apply scaling by interpolation
@@ -374,13 +403,16 @@ class GRUModelTrainer:
             augmented_sequences.append(np.array(warped_sequences))
             augmented_targets.append(targets.copy())
         
-        # 3. Magnitude warping: scale feature values slightly
-        scale_sequences = sequences.copy() * np.random.uniform(0.95, 1.05, size=(1, 1, sequences.shape[2]))
+        # 3. Magnitude warping: more conservative scale
+        scale_factor = np.random.uniform(0.98, 1.02, size=(1, 1, sequences.shape[2]))
+        scale_sequences = sequences.copy() * scale_factor
         augmented_sequences.append(scale_sequences)
         augmented_targets.append(targets.copy())
         
         # Combine all augmented data
         combined_sequences = np.vstack(augmented_sequences)
         combined_targets = np.vstack(augmented_targets)
+        
+        print(f"Augmented data: {len(sequences)} original sequences -> {len(combined_sequences)} total sequences")
         
         return combined_sequences, combined_targets
