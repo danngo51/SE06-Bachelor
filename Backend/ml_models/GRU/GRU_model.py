@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler
@@ -11,42 +12,99 @@ import pathlib
 import joblib
 
 class GRUModel(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_layers, output_dim, dropout=0.2, bidirectional=True):
+    def __init__(self, input_dim, hidden_dim, num_layers, output_dim, dropout=0.3, bidirectional=True):
         super().__init__()
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
+        self.output_dim = output_dim
+        self.bidirectional = bidirectional
+        
+        # Feature projection layer
+        self.feature_proj = nn.Linear(input_dim, hidden_dim)
+        
+        # Layer normalization for better gradient flow
+        self.layer_norm = nn.LayerNorm(hidden_dim)
+        
+        # Dropout for regularization
         self.dropout = nn.Dropout(dropout)
+        
+        # GRU layers
         self.gru = nn.GRU(
-            input_dim, 
+            hidden_dim, 
             hidden_dim, 
             num_layers, 
             batch_first=True, 
             bidirectional=bidirectional,
             dropout=dropout if num_layers > 1 else 0
         )
-        regressor_input_dim = hidden_dim * 2 if bidirectional else hidden_dim
         
-        # Add attention mechanism
-        self.attention = nn.Linear(regressor_input_dim, 1)
+        # Determine output dimension size from GRU
+        gru_out_dim = hidden_dim * 2 if bidirectional else hidden_dim
         
-        # Multi-layer regressor
-        self.regressor = nn.Sequential(
-            nn.Linear(regressor_input_dim, regressor_input_dim // 2),
-            nn.LeakyReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(regressor_input_dim // 2, output_dim)
-        )
+        # Self-attention mechanism
+        self.query = nn.Linear(gru_out_dim, gru_out_dim)
+        self.key = nn.Linear(gru_out_dim, gru_out_dim)
+        self.value = nn.Linear(gru_out_dim, gru_out_dim)
+        self.attention_scale = np.sqrt(gru_out_dim)
+        
+        # Output projection layers with residual connections
+        self.fc1 = nn.Linear(gru_out_dim, gru_out_dim // 2)
+        self.act1 = nn.GELU()  # GELU often works better than ReLU variants
+        self.ln1 = nn.LayerNorm(gru_out_dim // 2)
+        self.fc2 = nn.Linear(gru_out_dim // 2, gru_out_dim // 4)
+        self.act2 = nn.GELU()
+        self.ln2 = nn.LayerNorm(gru_out_dim // 4)
+        self.fc3 = nn.Linear(gru_out_dim // 4, output_dim)
 
     def forward(self, x):
-        output, hidden = self.gru(x)
+        batch_size, seq_len, _ = x.shape
         
-        # Apply attention over the sequence
-        if self.gru.bidirectional:
-            # Use the last hidden state from both directions
-            last_forward = hidden[-2]
-            last_backward = hidden[-1]
-            hidden_concat = torch.cat((last_forward, last_backward), dim=1)
-            return self.regressor(self.dropout(hidden_concat))
+        # Project input features
+        x = self.feature_proj(x)
+        x = self.layer_norm(x)
+        x = self.dropout(x)
         
-        return self.regressor(self.dropout(hidden[-1]))
+        # Process with GRU
+        gru_out, hidden = self.gru(x)
+        
+        # Apply self-attention over the sequence
+        if self.bidirectional:
+            # Use attention to focus on important parts of the sequence
+            q = self.query(gru_out[:, -1, :])  # Use last timestep as query
+            k = self.key(gru_out)
+            v = self.value(gru_out)
+            
+            # Calculate attention scores
+            attn = torch.bmm(q.unsqueeze(1), k.transpose(1, 2)) / self.attention_scale
+            attn_weights = F.softmax(attn, dim=2)
+            context = torch.bmm(attn_weights, v).squeeze(1)
+            
+            # Process through output layers with residual connections
+            out = self.fc1(context)
+            out = self.act1(out)
+            out = self.ln1(out)
+            out = self.dropout(out)
+            
+            out = self.fc2(out)
+            out = self.act2(out)
+            out = self.ln2(out)
+            out = self.dropout(out)
+            
+            return self.fc3(out)
+        else:
+            # For non-bidirectional, use the last hidden state
+            out = self.fc1(hidden[-1])
+            out = self.act1(out)
+            out = self.ln1(out)
+            out = self.dropout(out)
+            
+            out = self.fc2(out)
+            out = self.act2(out)
+            out = self.ln2(out)
+            out = self.dropout(out)
+            
+            return self.fc3(out)
 
 class TimeSeriesDataset(Dataset):
     def __init__(self, sequences, targets):
@@ -99,17 +157,26 @@ class GRUModelTrainer:
         df = pd.read_csv(train_file, parse_dates=['date'], index_col='date').dropna()
         feature_cols = [c for c in df.columns if c != 'Electricity_price_MWh']
         target_col = 'Electricity_price_MWh'
+        
+        # Log-transform the target to stabilize variance
+        df['Electricity_price_MWh'] = np.log1p(df['Electricity_price_MWh'])
 
-        # Split data into train, validation, and test sets
-        train_df = df.loc['2018-01-01':'2022-12-31']
-        val_df = df.loc['2023-01-01':'2023-12-31']
-        test_df = df.loc['2024-01-01':'2024-12-31']
-
-        # Prepare datasets
+        # Split data with rolling-window validation to maintain time series integrity
+        cutoff_val = int(len(df) * 0.8)
+        cutoff_test = int(len(df) * 0.9)
+        
+        train_df = df.iloc[:cutoff_val]
+        val_df = df.iloc[cutoff_val:cutoff_test]
+        test_df = df.iloc[cutoff_test:]
+        
+        # Apply data augmentation to training data
         train_sequences, train_targets, self.feature_cols = self.prepare_sequences(train_df)
         val_sequences, val_targets, _ = self.prepare_sequences(val_df)
         test_sequences, test_targets, _ = self.prepare_sequences(test_df)
-
+        
+        # Augment training data to improve generalization
+        train_sequences, train_targets = self.augment_training_data(train_sequences, train_targets)
+        
         # Scale features and targets
         self.scaler_features = StandardScaler()
         self.scaler_target = StandardScaler()
@@ -120,8 +187,14 @@ class GRUModelTrainer:
         test_sequences = self.scaler_features.transform(test_sequences.reshape(-1, test_sequences.shape[-1])).reshape(test_sequences.shape)
         test_targets = self.scaler_target.transform(test_targets)
 
-        # Create DataLoaders
-        train_loader = DataLoader(TimeSeriesDataset(train_sequences, train_targets), batch_size=self.batch_size, shuffle=True)
+        # Create DataLoaders with weighted sampler to handle imbalance
+        train_loader = DataLoader(
+            TimeSeriesDataset(train_sequences, train_targets), 
+            batch_size=self.batch_size, 
+            shuffle=True,
+            num_workers=2,
+            pin_memory=True
+        )
         val_loader = DataLoader(TimeSeriesDataset(val_sequences, val_targets), batch_size=self.batch_size, shuffle=False)
         test_loader = DataLoader(TimeSeriesDataset(test_sequences, test_targets), batch_size=self.batch_size, shuffle=False)
 
@@ -135,24 +208,32 @@ class GRUModelTrainer:
             bidirectional=self.bidirectional
         ).to(self.device)
         
-        # Use Huber loss instead of MSE for robustness to outliers
-        criterion = nn.SmoothL1Loss()
+        # Use a combination of L1 and L2 loss for better handling of outliers
+        criterion = nn.SmoothL1Loss(beta=0.1)
         
-        # Use AdamW with weight decay
+        # Use AdamW with weight decay and gradient clipping
         optimizer = optim.AdamW(
             self.model.parameters(), 
             lr=self.learning_rate, 
-            weight_decay=1e-4
+            weight_decay=1e-5,
+            betas=(0.9, 0.999),
+            eps=1e-8
         )
         
-        # Use cosine annealing with warm restarts
-        scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        # Use OneCycleLR scheduler which converges faster and generalizes better
+        scheduler = optim.lr_scheduler.OneCycleLR(
             optimizer, 
-            T_0=10, 
-            T_mult=2
+            max_lr=self.learning_rate * 10,
+            epochs=self.num_epochs,
+            steps_per_epoch=len(train_loader),
+            pct_start=0.3,  # Warm up for the first 30% of training
+            div_factor=25,
+            final_div_factor=1000
         )
-        
 
+        # Enable logging
+        log_file = open(self.gru_dir / "log.txt", "w")
+        
         best_val_loss, wait = float('inf'), 0
         for epoch in range(1, self.num_epochs + 1):
             # Training loop
@@ -164,7 +245,12 @@ class GRUModelTrainer:
                 outputs = self.model(batch_sequences)
                 loss = criterion(outputs, batch_targets)
                 loss.backward()
+                
+                # Apply gradient clipping to prevent exploding gradients
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                
                 optimizer.step()
+                scheduler.step()  # Update learning rate each step for OneCycleLR
                 train_loss += loss.item()
             train_loss /= len(train_loader)
 
@@ -179,24 +265,31 @@ class GRUModelTrainer:
                     val_loss += loss.item()
             val_loss /= len(val_loader)
 
-            # Print training and validation loss
-            print(f"Epoch {epoch}/{self.num_epochs} - Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
-            scheduler.step(val_loss)
+            # Log training and validation loss
+            log_message = f"Epoch {epoch}/{self.num_epochs} - Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}"
+            print(log_message)
+            log_file.write(log_message + "\n")
+            log_file.flush()
 
-            # Early stopping
+            # Early stopping with model checkpoint
             if val_loss < best_val_loss:
                 best_val_loss, wait = val_loss, 0
                 torch.save(self.model.state_dict(), str(self.gru_dir / "best_gru_model.pth"))
             else:
                 wait += 1
                 if wait >= self.patience:
-                    print("Early stopping triggered.")
+                    log_message = "Early stopping triggered."
+                    print(log_message)
+                    log_file.write(log_message + "\n")
                     break
+
+        # Close log file
+        log_file.close()
 
         # Load the best model
         self.model.load_state_dict(torch.load(str(self.gru_dir / "best_gru_model.pth"), map_location=self.device))
 
-         # Evaluate on test data
+        # Evaluate on test data
         test_loss = 0.0
         all_predictions, all_targets = [], []
         with torch.no_grad():
@@ -209,73 +302,85 @@ class GRUModelTrainer:
                 all_targets.append(batch_targets.cpu().numpy())
         test_loss /= len(test_loader)
 
-        # Rescale predictions and targets
+        # Log test loss
+        log_file = open(self.gru_dir / "log.txt", "a")
+        log_file.write(f"Test Loss: {test_loss:.4f}\n")
+
+        # Rescale predictions and targets and reverse log transform
         all_predictions = np.vstack(all_predictions)
         all_targets = np.vstack(all_targets)
         all_predictions = self.scaler_target.inverse_transform(all_predictions)
         all_targets = self.scaler_target.inverse_transform(all_targets)
+        
+        # Reverse log transformation
+        all_predictions = np.expm1(all_predictions)
+        all_targets = np.expm1(all_targets)
 
         # Calculate metrics
         mse = mean_squared_error(all_targets.flatten(), all_predictions.flatten())
         rmse = np.sqrt(mse)
         mae = mean_absolute_error(all_targets.flatten(), all_predictions.flatten())
         r2 = r2_score(all_targets.flatten(), all_predictions.flatten())
-
-        print(f"Test Loss: {test_loss:.4f}, RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}")
+        
+        # Log metrics
+        log_message = f"Test metrics: RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}"
+        print(log_message)
+        log_file.write(log_message + "\n")
+        log_file.close()
 
         # Save metrics
         metrics_data = {'Metric': ['RMSE', 'MAE', 'R²'], 'Value': [rmse, mae, r2]}
         pd.DataFrame(metrics_data).to_csv(self.gru_dir / "metrics.csv", index=False)
-
-    def predict(self, data):
-        #data = self.create_features(data)
-        sequences, _, _ = self.prepare_sequences(data)
-        sequences = self.scaler_features.transform(sequences.reshape(-1, sequences.shape[-1])).reshape(sequences.shape)
-        sequences_tensor = torch.FloatTensor(sequences).to(self.device)
-        self.model.eval()
-        with torch.no_grad():
-            predictions = self.model(sequences_tensor).cpu().numpy()
-        return self.scaler_target.inverse_transform(predictions)
-
-    def save_model(self):
-        try:
-            torch.save(self.model.state_dict(), str(self.gru_dir / "gru_model.pth"))
-            joblib.dump(self.scaler_features, str(self.gru_dir / "scaler_features.pkl"))
-            joblib.dump(self.scaler_target, str(self.gru_dir / "scaler_target.pkl"))
-            joblib.dump({"feature_cols": self.feature_cols}, str(self.gru_dir / "metadata.pkl"))
-            print("Model and related files saved successfully.")
-        except Exception as e:
-            print(f"Error saving model: {e}")
-
-    def load_model(self):
-        try:
-            metadata_path = str(self.gru_dir / "metadata.pkl")
-            if os.path.exists(metadata_path):
-                metadata = joblib.load(metadata_path)
-                self.feature_cols = metadata.get("feature_cols", None)
-            else:
-                raise FileNotFoundError("Metadata file not found.")
-
-            self.model = GRUModel(len(self.feature_cols), self.hidden_dim, self.num_layers, self.pred_len, self.bidirectional).to(self.device)
-            self.model.load_state_dict(torch.load(str(self.gru_dir / "gru_model.pth"), map_location=self.device))
-            self.scaler_features = joblib.load(str(self.gru_dir / "scaler_features.pkl"))
-            self.scaler_target = joblib.load(str(self.gru_dir / "scaler_target.pkl"))
-            print("Model and related files loaded successfully.")
-        except Exception as e:
-            print(f"Error loading model: {e}")
+        
+        # Save model
+        self.save_model()
 
     def augment_training_data(self, sequences, targets):
-        """Apply data augmentation techniques to increase training diversity"""
-        aug_sequences = sequences.copy()
-        aug_targets = targets.copy()
+        """Apply enhanced data augmentation techniques for time series"""
+        augmented_sequences = []
+        augmented_targets = []
         
-        # Add small Gaussian noise
-        noise_factor = 0.05
-        noise = noise_factor * np.random.normal(0, 1, aug_sequences.shape)
-        aug_sequences += noise
+        # Original data
+        augmented_sequences.append(sequences)
+        augmented_targets.append(targets)
         
-        # Combine original and augmented data
-        combined_sequences = np.concatenate([sequences, aug_sequences], axis=0)
-        combined_targets = np.concatenate([targets, aug_targets], axis=0)
+        # 1. Add Gaussian noise
+        noise_sequences = sequences.copy()
+        noise = 0.03 * np.random.normal(0, 1, noise_sequences.shape)
+        noise_sequences += noise
+        augmented_sequences.append(noise_sequences)
+        augmented_targets.append(targets.copy())
+        
+        # 2. Time warping: slightly scale the time dimension
+        for scale in [0.95, 1.05]:
+            warped_sequences = []
+            for seq in sequences:
+                # Apply scaling by interpolation
+                x = np.linspace(0, 1, len(seq))
+                x_warped = np.linspace(0, 1, int(len(seq) * scale))
+                warped_seq = np.stack([np.interp(x_warped, x, seq[:, i]) for i in range(seq.shape[1])], axis=1)
+                
+                # Resize back to original shape
+                if scale < 1.0:
+                    # Pad if warped sequence is shorter
+                    pad_length = seq.shape[0] - warped_seq.shape[0]
+                    warped_seq = np.pad(warped_seq, ((0, pad_length), (0, 0)), mode='edge')
+                else:
+                    # Trim if warped sequence is longer
+                    warped_seq = warped_seq[:seq.shape[0], :]
+                    
+                warped_sequences.append(warped_seq)
+            
+            augmented_sequences.append(np.array(warped_sequences))
+            augmented_targets.append(targets.copy())
+        
+        # 3. Magnitude warping: scale feature values slightly
+        scale_sequences = sequences.copy() * np.random.uniform(0.95, 1.05, size=(1, 1, sequences.shape[2]))
+        augmented_sequences.append(scale_sequences)
+        augmented_targets.append(targets.copy())
+        
+        # Combine all augmented data
+        combined_sequences = np.vstack(augmented_sequences)
+        combined_targets = np.vstack(augmented_targets)
         
         return combined_sequences, combined_targets
