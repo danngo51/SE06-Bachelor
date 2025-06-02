@@ -1,14 +1,14 @@
-Epoch 1/50 - Train Loss: 0.3337, Val Loss: 0.4308
-Epoch 2/50 - Train Loss: 0.2534, Val Loss: 0.4871
-Epoch 3/50 - Train Loss: 0.2130, Val Loss: 0.4913
-Epoch 4/50 - Train Loss: 0.1842, Val Loss: 0.4973
-Epoch 5/50 - Train Loss: 0.1677, Val Loss: 0.5371
-Epoch 6/50 - Train Loss: 0.1505, Val Loss: 0.5118
-Epoch 7/50 - Train Loss: 0.1456, Val Loss: 0.4891
-Epoch 8/50 - Train Loss: 0.1423, Val Loss: 0.5109
-Epoch 9/50 - Train Loss: 0.1395, Val Loss: 0.5338
-Epoch 10/50 - Train Loss: 0.1367, Val Loss: 0.5080
-Epoch 11/50 - Train Loss: 0.1311, Val Loss: 0.5312
+Epoch 1/50 - Train Loss: 0.3334, Val Loss: 0.3955
+Epoch 2/50 - Train Loss: 0.2529, Val Loss: 0.4804
+Epoch 3/50 - Train Loss: 0.2131, Val Loss: 0.5006
+Epoch 4/50 - Train Loss: 0.1834, Val Loss: 0.4788
+Epoch 5/50 - Train Loss: 0.1677, Val Loss: 0.4709
+Epoch 6/50 - Train Loss: 0.1522, Val Loss: 0.4970
+Epoch 7/50 - Train Loss: 0.1463, Val Loss: 0.4986
+Epoch 8/50 - Train Loss: 0.1429, Val Loss: 0.5052
+Epoch 9/50 - Train Loss: 0.1404, Val Loss: 0.5100
+Epoch 10/50 - Train Loss: 0.1375, Val Loss: 0.4917
+Epoch 11/50 - Train Loss: 0.1319, Val Loss: 0.5138
 Early stopping triggered.
-Test Loss: 0.5455
-Test metrics: RMSE: 50.9218, MAE: 36.1334, R²: 0.2388
+Test Loss: 0.5134
+Test metrics: RMSE: 49.6042, MAE: 34.1412, R²: 0.2777
