@@ -138,7 +138,7 @@ class HybridModel:
                 "gru": 0.3,
                 "informer": 0.3
             }
-        
+        print(f"\nPredicting for {country_code} on {prediction_date} with weights: {weights}")
         # Check if we have pipelines for this country, load them if not
         xgboost_name = f"xgboost_{country_code}"
         gru_name = f"gru_{country_code}"

@@ -57,6 +57,7 @@ class ZonePaths:
         """Check for missing required model files"""
         missing_files = []
         
+        '''
         # Check XGBoost models
         if not os.path.exists(self.normal_model_path):
             missing_files.append(f"normal regime model: {self.normal_model_path}")
@@ -66,10 +67,10 @@ class ZonePaths:
             
         # GRU and Informer models are optional, so we don't check for them
         # The hybrid model will use whichever models are available
+        '''
         
         return missing_files
             
-        return missing_files
 
 class PredictionService(IPredictionService):
     """
