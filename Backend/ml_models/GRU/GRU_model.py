@@ -37,8 +37,19 @@ class GRUTrainer:
         self.project_root = current_file.parent.parent
         self.data_dir = self.project_root / "data" / self.mapcode
         self.gru_dir = self.data_dir / "gru"
-        os.makedirs(self.data_dir, exist_ok=True)
-        os.makedirs(self.gru_dir, exist_ok=True)    
+        
+        # Create directories with explicit permissions
+        try:
+            if not os.path.exists(self.data_dir):
+                os.makedirs(self.data_dir, exist_ok=True)
+            if not os.path.exists(self.gru_dir):
+                os.makedirs(self.gru_dir, exist_ok=True)
+                # Set permissions (Windows only)
+                if os.name == 'nt':  # Windows
+                    import subprocess
+                    subprocess.run(['icacls', str(self.gru_dir), '/grant', 'Everyone:(OI)(CI)F'])
+        except Exception as e:
+            print(f"Warning: Failed to create directories with proper permissions: {str(e)}")
         
     def load_dataset(self, csv_path: str, val_split=0.2):
         df = pd.read_csv(csv_path, parse_dates=['date'])
@@ -68,6 +79,8 @@ class GRUTrainer:
     
     def train(self, train_file: str):
         train_loader, val_loader, scaler = self.load_dataset(train_file)
+        # Store the scaler as an instance attribute so we can save it later
+        self.scaler = scaler
         input_size = next(iter(train_loader))[0].shape[2]
         output_size = self.pred_len
 
@@ -112,7 +125,7 @@ class GRUTrainer:
             avg_val_loss = total_val_loss / len(val_loader)
             
             # Print both losses
-            print(f"Epoch {epoch + 1}/{self.num_epochs}, Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
+            print(f"Epoch {epoch + 1}/{self.num_epochs}, Train Loss: {avg_train_loss:.6f}, Val Loss: {avg_val_loss:.6f}")
 
             # Early stopping based on validation loss
             if avg_val_loss < best_val_loss:

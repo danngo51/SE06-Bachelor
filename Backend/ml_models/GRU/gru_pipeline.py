@@ -1,4 +1,6 @@
 from typing import Optional
+
+import numpy as np
 import torch
 import pandas as pd
 import os
@@ -21,7 +23,7 @@ class GRUPipeline(IModelPipeline):
             project_root = current_file.parent.parent
             data_dir = project_root / "data" / self.mapcode
             gru_dir = data_dir / "gru"
-            model_path = str(gru_dir / "gru_model.pt")
+            model_path = str(gru_dir / "gru_model.pth")
             scaler_path = str(gru_dir / "scaler.pkl")
             
             # Check if model exists
@@ -36,17 +38,22 @@ class GRUPipeline(IModelPipeline):
         else:
             self.scaler = StandardScaler()
         
-        # Load model
-        # GRU parameters - we'll determine these from the saved model if possible
-        input_size = 4  # Default input size (adjust based on your data features)
-        hidden_size = 64
-        num_layers = 2
+        # Load the state_dict first to determine input_size
+        state_dict = torch.load(model_path, map_location=self.device)
+        
+        # Determine input_size from the weight dimensions of the first GRU layer
+        # The weight_ih_l0 has shape [3*hidden_size, input_size]
+        input_size = state_dict['gru.weight_ih_l0'].shape[1]
+        hidden_size = state_dict['gru.weight_ih_l0'].shape[0] // 3
+        num_layers = sum(1 for key in state_dict if 'weight_ih_l' in key)
         output_size = self.pred_len
         
+        print(f"Detected model parameters - input_size: {input_size}, hidden_size: {hidden_size}, num_layers: {num_layers}")
+        
+        # Initialize model with the correct dimensions
         self.model = GRUModel(input_size, hidden_size, num_layers, output_size)
         
         try:
-            state_dict = torch.load(model_path, map_location=self.device)
             self.model.load_state_dict(state_dict)
             print(f"Model loaded successfully from {model_path}")
         except Exception as e:
@@ -64,12 +71,23 @@ class GRUPipeline(IModelPipeline):
         self.model.eval()
 
     def preprocess(self, df: pd.DataFrame) -> torch.Tensor:
-        values = self.scaler.fit_transform(df.values)
+        # Transform the input data using the saved scaler
+        values = self.scaler.transform(df.values)
+        
+        # If the input data has fewer features than the model expects, pad with zeros
+        if values.shape[1] < self.model.gru.input_size:
+            pad_width = ((0, 0), (0, self.model.gru.input_size - values.shape[1]))
+            values = np.pad(values, pad_width, mode='constant', constant_values=0)
+        # If it has more features than expected, truncate
+        elif values.shape[1] > self.model.gru.input_size:
+            values = values[:, :self.model.gru.input_size]
+        
         sequences = []
         for i in range(len(values) - self.seq_len + 1):
             seq = values[i:i + self.seq_len]
             sequences.append(seq)
-        return torch.tensor(sequences, dtype=torch.float32)
+        
+        return torch.tensor(np.array(sequences), dtype=torch.float32)
 
     def predict(self, input_tensor: torch.Tensor) -> pd.Series:
         input_tensor = input_tensor.to(self.device)
