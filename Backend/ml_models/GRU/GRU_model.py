@@ -364,3 +364,28 @@ class GRUModelTrainer:
     def augment_training_data(self, sequences, targets):
         """Minimal augmentation for speed"""
         return sequences, targets  # No augmentation at all for faster training
+
+    def save_model(self):
+        # Save model weights
+        self.gru_dir.mkdir(parents=True, exist_ok=True)
+        model_path = self.gru_dir / "gru_model.pth"
+        torch.save(self.model.state_dict(), model_path)
+        
+        # Save scalers
+        joblib.dump(self.scaler_features, self.gru_dir / "scaler_features.pkl")
+        joblib.dump(self.scaler_target, self.gru_dir / "scaler_target.pkl")
+        
+        # Save feature columns
+        if self.feature_cols:
+            joblib.dump(self.feature_cols, self.gru_dir / "feature_columns.pkl")
+        
+        # Save model configuration
+        model_config = {
+            "input_dim": self.model.input_dim,
+            "hidden_dim": self.model.hidden_dim,
+            "num_layers": self.model.num_layers,
+            "output_dim": self.model.output_dim,
+            "bidirectional": self.model.bidirectional
+        }
+        joblib.dump(model_config, self.gru_dir / "model_config.pkl")
+        print(f"Model saved to {self.gru_dir}")
