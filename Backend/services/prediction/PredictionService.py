@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Union
 from dataclasses import dataclass
 
 from model.prediction import PredictionRequest, PredictionResponse, CountryPredictionData, HourlyPredictionData, HybridModelOutput
-from ml_models.Hybrid_Model import hybrid_model
+from ml_models.hybrid_model import hybrid_model
 from interfaces.PredictionServiceInterface import IPredictionService
 
 @dataclass
